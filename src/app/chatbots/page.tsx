@@ -17,13 +17,32 @@ import {
 import Image from "next/image";
 import { useState } from "react";
 import { DeleteChatbotButton } from "@/components/delete-chatbot-button";
-import { DatabaseService } from "@/services/database.service";
+
+// Define a type for chatbot objects
+interface Chatbot {
+  id: string;
+  name: string;
+  imageUrl?: string;
+  visibility?: string;
+  userId?: string;
+  [key: string]: any; // Allow for other properties
+}
 
 // Function to get user's name from their ID
 async function getUsernameById(userId: string): Promise<string> {
   try {
-    const user = await DatabaseService.getUserById(userId);
-    return user?.username || "Unknown User";
+    // Use a simple fetch to the user API instead of direct database access
+    const response = await fetch(`/api/user/${userId}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return "Unknown User";
+    }
+
+    const userData = await response.json();
+    return userData?.username || "Unknown User";
   } catch (error) {
     console.error("Error fetching username:", error);
     return "Unknown User";
@@ -37,23 +56,21 @@ export default async function ChatbotsPage() {
 
   // Get public chatbots
   const publicResult = await getPublicChatbots();
-  const publicChatbots = publicResult.success
+  const publicChatbots: Chatbot[] = publicResult.success
     ? publicResult.chatbots || []
     : [];
 
   // Get user's chatbots if authenticated
-  let userChatbots: any[] = [];
+  let userChatbots: Chatbot[] = [];
   if (authenticated && user) {
     const userResult = await getUserChatbots();
     userChatbots = userResult.success ? userResult.chatbots || [] : [];
   }
 
   // Combine chatbots, removing duplicates (a user's public chatbot could appear in both lists)
-  const userChatbotIds = new Set(
-    userChatbots.map((chatbot: any) => chatbot.id)
-  );
+  const userChatbotIds = new Set(userChatbots.map((chatbot) => chatbot.id));
   const filteredPublicChatbots = publicChatbots.filter(
-    (chatbot: any) => !userChatbotIds.has(chatbot.id)
+    (chatbot) => !userChatbotIds.has(chatbot.id)
   );
 
   // Get usernames for public chatbots
@@ -103,7 +120,7 @@ export default async function ChatbotsPage() {
             <h2 className="text-2xl font-semibold">Your Chatbots</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {userChatbots.map((chatbot: any) => (
+            {userChatbots.map((chatbot) => (
               <Link
                 href={`/chatbots/${chatbot.id}`}
                 key={chatbot.id}
@@ -223,7 +240,7 @@ export default async function ChatbotsPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {filteredPublicChatbots.map((chatbot: any) => (
+            {filteredPublicChatbots.map((chatbot) => (
               <Link
                 href={`/chatbots/${chatbot.id}`}
                 key={chatbot.id}
