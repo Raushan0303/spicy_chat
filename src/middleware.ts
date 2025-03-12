@@ -1,30 +1,42 @@
-import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
 import { NextRequest } from "next/server";
+import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
 
-// Extend NextRequest with kindeAuth property
-declare module "next/server" {
-  interface NextRequest {
-    kindeAuth?: any;
+export default function middleware(req: NextRequest) {
+  // Only apply authentication to protected routes
+  const path = req.nextUrl.pathname;
+
+  // Public routes that don't require authentication
+  const publicRoutes = ["/", "/chatbots", "/api/chatbots"];
+
+  // Check if the current path is a public route
+  const isPublicRoute = publicRoutes.some(
+    (route) =>
+      path === route ||
+      (path.startsWith(`${route}/`) && !path.includes("/create"))
+  );
+
+  // Skip authentication for public routes
+  if (isPublicRoute) {
+    return;
   }
-}
 
-// Define a type for the token
-interface KindeToken {
-  permissions: string[];
+  // Apply authentication for protected routes
+  return withAuth(req);
 }
-
-export default withAuth(async function middleware(req: NextRequest) {
-  // You can add custom middleware logic here if needed
-});
 
 export const config = {
   matcher: [
-    // Protect these routes - require authentication
+    // Protected routes
     "/dashboard/:path*",
-    "/api/chatbots/:path*",
-    "/api/personas/:path*",
-    "/api/chats/:path*",
-    // Don't protect these routes
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/profile/:path*",
+    "/chats/:path*",
+    "/personas/:path*",
+    "/chatbots/create/:path*",
+    "/personas/create/:path*",
+    "/api/chat/:path*",
+    "/api/images/generate/:path*",
+
+    // Exclude public routes
+    "/((?!_next/static|_next/image|favicon.ico|assets|api/chatbots/[^/]+$).*)",
   ],
 };

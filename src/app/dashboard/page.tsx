@@ -1,19 +1,17 @@
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { redirect } from "next/navigation";
-
-export default async function DashboardPage() {
-  const { isAuthenticated, getUser } = getKindeServerSession();
-
-  if (!isAuthenticated) {
-    redirect("/api/auth/login");
-  }
-
-  const user = await getUser();
-
+export default function Dashboard() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Welcome, {user?.given_name}</h1>
-      {/* Dashboard content */}
+    <div className="container">
+      <div className="card start-hero">
+        <p className="text-body-2 start-hero-intro">Woohoo!</p>
+        <p className="text-display-2">
+          Your authentication is all sorted.
+          <br />
+          Build the important stuff.
+        </p>
+      </div>
+      <section className="next-steps-section">
+        <h2 className="text-heading-1">Next steps for you</h2>
+      </section>
     </div>
   );
 }

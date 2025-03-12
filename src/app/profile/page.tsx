@@ -4,13 +4,14 @@ import { DatabaseService } from "@/services/database.service";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function ProfilePage() {
   // Get the authenticated user from Kinde
   const { getUser, isAuthenticated } = getKindeServerSession();
   const authenticated = await isAuthenticated();
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated, but with a better UX
   if (!authenticated) {
     redirect("/api/auth/login?post_login_redirect_url=/profile");
   }
@@ -101,7 +102,7 @@ export default async function ProfilePage() {
               Back to Home
             </Button>
           </Link>
-          <LogoutLink>
+          <LogoutLink postLogoutRedirectURL="/">
             <Button className="bg-red-600 hover:bg-red-700">Sign Out</Button>
           </LogoutLink>
         </div>
