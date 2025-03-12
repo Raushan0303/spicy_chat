@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Upload, Image as ImageIcon, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export function ImageUploader() {
   const [activeTab, setActiveTab] = useState<"upload" | "generate">("upload");
@@ -201,11 +202,18 @@ export function ImageUploader() {
             <div className="absolute inset-0 flex items-center justify-center text-gray-500">
               <ImageIcon className="h-8 w-8" />
             </div>
-            <img
-              src={previewUrl}
-              alt="Preview"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+            {previewUrl && (
+              <div className="absolute inset-0">
+                <Image
+                  src={previewUrl}
+                  alt="Preview"
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                  unoptimized={previewUrl.startsWith("data:")}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Parse the request body
     const body = await request.json();
-    const { prompt, size = "1024x1024", modelKey = "stability-sdxl" } = body;
+    const { prompt, modelKey = "stability-sdxl" } = body;
 
     if (!prompt) {
       return NextResponse.json(
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     // Handle error responses
     if (!response.ok) {
-      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      const errorMessage = `API Error: ${response.status} ${response.statusText}`;
       let errorDetails = {};
 
       try {

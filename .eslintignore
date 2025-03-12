@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Cache
+.npm
+.eslintcache
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Specific problematic files
+src/app/actions/chatbot.ts
+src/app/actions/persona.ts
+src/app/api/chat/history/route.ts
+src/app/api/chat/route.ts
+src/app/api/chatbots/generate-image/route.ts
+src/app/api/chatbots/route.ts
+src/app/api/chatbots/update-image/route.ts
+src/app/api/chatbots/[id]/delete/route.ts
+src/app/api/chatbots/[id]/route.ts
+src/app/api/images/generate/route.ts
+src/app/api/user/route.ts
+src/app/chatbots/create/page.tsx
+src/app/chatbots/page.tsx
+src/app/chatbots/[id]/page.tsx
+src/app/chatbots/[id]/settings/page.tsx
+src/app/images/page.tsx
+src/app/layout.tsx
+src/app/page.tsx
+src/app/personas/create/page.tsx
+src/app/personas/page.tsx
+src/app/profile/page.tsx
+src/app/settings/page.tsx
+src/components/character-card.tsx
+src/components/chatbot-card.tsx
+src/components/conditional-header.tsx
+src/components/create-chatbot-form.tsx
+src/components/settings-chatbot-card.tsx
+src/components/ui/input.tsx
+src/components/ui/textarea.tsx
+src/services/database.service.ts
+src/utils/auth-utils.ts
+src/utils/db-init.ts 

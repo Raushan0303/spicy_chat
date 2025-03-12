@@ -246,8 +246,8 @@ export default async function CreatePersonaPage() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p>
-                            Provide a detailed description of your persona's
-                            background, knowledge, and purpose
+                            Provide a detailed description of your
+                            persona&apos;s background, knowledge, and purpose
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -314,7 +314,7 @@ export default async function CreatePersonaPage() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p>
-                            Upload an image that represents this persona's
+                            Upload an image that represents this persona&apos;s
                             appearance or character
                           </p>
                         </TooltipContent>
