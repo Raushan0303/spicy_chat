@@ -19,6 +19,7 @@ import {
   Save,
   HelpCircle,
   UserCircle,
+  ImageIcon,
 } from "lucide-react";
 import {
   Tooltip,
@@ -29,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ImageUploader } from "@/components/image-uploader";
 
 export default async function CreatePersonaPage() {
   const { isAuthenticated } = getKindeServerSession();
@@ -97,6 +99,39 @@ export default async function CreatePersonaPage() {
           .filter(Boolean)
       : [];
 
+    // Handle image - either from file upload or generated image
+    const imageFile = formData.get("image") as File;
+    const generatedImageUrl = formData.get("generatedImageUrl") as string;
+    let imageUrl = "";
+
+    // If we have a generated image URL, use that
+    if (generatedImageUrl && generatedImageUrl.trim() !== "") {
+      imageUrl = generatedImageUrl;
+    }
+    // Otherwise, try to upload the file if provided
+    else if (imageFile && imageFile.size > 0) {
+      // Create a new FormData to send the image file
+      const imageFormData = new FormData();
+      imageFormData.append("file", imageFile);
+
+      try {
+        // Upload the image
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: imageFormData,
+        });
+
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json();
+          imageUrl = uploadResult.url;
+        } else {
+          console.error("Failed to upload image:", await uploadResponse.text());
+        }
+      } catch (error) {
+        console.error("Error uploading image:", error);
+      }
+    }
+
     // Create the persona
     const result = await createPersona({
       name,
@@ -105,6 +140,7 @@ export default async function CreatePersonaPage() {
       tone,
       style,
       expertise,
+      imageUrl, // Add the image URL to the persona
     });
 
     if (result.success && result.persona) {
@@ -260,6 +296,35 @@ export default async function CreatePersonaPage() {
                     Separate traits with commas
                   </p>
                 </div>
+
+                {/* Image Upload Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="image"
+                      className="text-sm font-medium flex items-center gap-1.5"
+                    >
+                      <ImageIcon className="h-3.5 w-3.5 text-pink-400" />
+                      Persona Image
+                    </Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3.5 w-3.5 text-gray-500 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>
+                            Upload an image that represents this persona's
+                            appearance or character
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+
+                  {/* Replace the old image upload/generation code with our new client component */}
+                  <ImageUploader />
+                </div>
               </div>
 
               <div className="space-y-6">
@@ -269,8 +334,8 @@ export default async function CreatePersonaPage() {
                       htmlFor="tone"
                       className="text-sm font-medium flex items-center gap-1.5"
                     >
-                      <Palette className="h-3.5 w-3.5 text-blue-400" />
-                      Tone
+                      <MessageSquare className="h-3.5 w-3.5 text-blue-400" />
+                      Communication Tone
                     </Label>
                     <TooltipProvider>
                       <Tooltip>
@@ -279,8 +344,8 @@ export default async function CreatePersonaPage() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p>
-                            The overall tone of communication (e.g.,
-                            Professional, Casual, Humorous)
+                            Describe how this persona should communicate (e.g.,
+                            formal, casual, enthusiastic)
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -291,7 +356,7 @@ export default async function CreatePersonaPage() {
                     id="tone"
                     name="tone"
                     className="w-full p-3 bg-gray-800/80 border border-gray-700 rounded-md text-white transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., Professional, Casual, Humorous"
+                    placeholder="e.g., formal, casual, enthusiastic"
                   />
                 </div>
 
@@ -301,8 +366,8 @@ export default async function CreatePersonaPage() {
                       htmlFor="style"
                       className="text-sm font-medium flex items-center gap-1.5"
                     >
-                      <MessageSquare className="h-3.5 w-3.5 text-green-400" />
-                      Communication Style
+                      <Palette className="h-3.5 w-3.5 text-green-400" />
+                      Writing Style
                     </Label>
                     <TooltipProvider>
                       <Tooltip>
@@ -311,8 +376,8 @@ export default async function CreatePersonaPage() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p>
-                            How the persona communicates (e.g., Conversational,
-                            Academic, Direct)
+                            Describe the writing style (e.g., concise, detailed,
+                            storytelling)
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -323,7 +388,7 @@ export default async function CreatePersonaPage() {
                     id="style"
                     name="style"
                     className="w-full p-3 bg-gray-800/80 border border-gray-700 rounded-md text-white transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., Conversational, Academic, Direct"
+                    placeholder="e.g., concise, detailed, storytelling"
                   />
                 </div>
 
@@ -333,7 +398,7 @@ export default async function CreatePersonaPage() {
                       htmlFor="expertise"
                       className="text-sm font-medium flex items-center gap-1.5"
                     >
-                      <Brain className="h-3.5 w-3.5 text-purple-400" />
+                      <Brain className="h-3.5 w-3.5 text-yellow-400" />
                       Areas of Expertise
                     </Label>
                     <TooltipProvider>
@@ -343,8 +408,8 @@ export default async function CreatePersonaPage() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p>
-                            Specific knowledge areas separated by commas (e.g.,
-                            History, Science Fiction, Programming)
+                            List areas of knowledge or expertise separated by
+                            commas
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -355,45 +420,35 @@ export default async function CreatePersonaPage() {
                     id="expertise"
                     name="expertise"
                     className="w-full p-3 bg-gray-800/80 border border-gray-700 rounded-md text-white transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., History, Science Fiction, Programming"
+                    placeholder="e.g., science, history, programming"
                   />
                   <p className="text-xs text-gray-400">
-                    Separate expertise areas with commas
+                    Separate areas with commas
                   </p>
+                </div>
+
+                <div className="pt-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="createChatbot" name="createChatbot" />
+                    <Label
+                      htmlFor="createChatbot"
+                      className="text-sm text-gray-300"
+                    >
+                      Create a chatbot with this persona after saving
+                    </Label>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-800">
-              <div className="flex items-center space-x-2">
-                <Checkbox id="createChatbot" name="createChatbot" />
-                <Label
-                  htmlFor="createChatbot"
-                  className="text-sm text-gray-300"
-                >
-                  Create a chatbot with this persona after saving
-                </Label>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex justify-end pt-4">
               <Button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 transition-all py-6 text-base font-medium flex-1"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-2 flex items-center gap-2"
               >
-                <Save className="mr-2 h-4 w-4" />
-                Create Persona
+                <Save className="h-4 w-4" />
+                Save Persona
               </Button>
-
-              <Link href="/personas" className="flex-1 sm:flex-initial">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-gray-700 hover:bg-gray-800 transition-all w-full"
-                >
-                  Cancel
-                </Button>
-              </Link>
             </div>
           </form>
         </CardContent>

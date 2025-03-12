@@ -12,6 +12,7 @@ export type PersonaFormData = {
   tone?: string;
   style?: string;
   expertise?: string[];
+  imageUrl?: string;
 };
 
 /**
@@ -46,6 +47,7 @@ export async function createPersona(formData: PersonaFormData) {
       tone: formData.tone || "",
       style: formData.style || "",
       expertise: formData.expertise || [],
+      imageUrl: formData.imageUrl || "",
     });
 
     // Revalidate any paths that might display personas
