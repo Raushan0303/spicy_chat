@@ -1,12 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Button } from "@/components/ui/button";
-import {
-  RegisterLink,
-  LoginLink,
-  LogoutLink,
-} from "@kinde-oss/kinde-auth-nextjs/components";
+
 import { syncUserWithDatabase } from "./actions/auth";
 import Link from "next/link";
 
@@ -15,8 +10,7 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { initializeDatabase } from "@/utils/db-init";
 
 import { Toaster } from "react-hot-toast";
-import { cn } from "@/lib/utils";
-import { UserAvatar } from "@/components/user-avatar";
+
 import { ConditionalHeader } from "@/components/conditional-header";
 import { Home } from "lucide-react";
 
@@ -37,7 +31,7 @@ if (process.env.NODE_ENV === "production") {
 } else {
   console.log("Initializing database in development mode");
   // In development, initialize on each request to handle hot reloading
-  const initPromise = initializeDatabase().catch(console.error);
+  // const initPromise = initializeDatabase().catch(console.error);
 }
 
 export const metadata: Metadata = {
@@ -59,14 +53,6 @@ export default async function RootLayout({
     // Call the server action to sync the user with our database
     await syncUserWithDatabase();
   }
-
-  // Get the current pathname to determine if we're on the home page
-  const pathname = process.env.NEXT_PUBLIC_APP_URL || "";
-  const isHomePage =
-    pathname === "" ||
-    pathname === "/" ||
-    pathname === "http://localhost:3000" ||
-    pathname === "https://localhost:3000";
 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
