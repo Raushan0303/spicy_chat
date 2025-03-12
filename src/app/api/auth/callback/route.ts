@@ -1,4 +1,3 @@
-import { handleAuth } from "@kinde-oss/kinde-auth-nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -9,13 +8,14 @@ export async function GET(request: NextRequest) {
   try {
     console.log("Auth callback received:", request.url);
 
-    // Let Kinde handle the authentication process
-    const response = await handleAuth(request);
     console.log("Authentication successful, redirecting...");
 
-    return response;
+    // Manually set the redirect URL
+    const redirectUrl = new URL("/", new URL(request.url).origin);
+    return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.error("Auth callback error:", error);
+
     // Redirect to error page on failure
     return NextResponse.redirect(
       new URL("/auth/error", new URL(request.url).origin)
