@@ -10,6 +10,7 @@ const Auth = () => {
   const clearSpecificCookies = () => {
     // List of cookies to delete explicitly
     const cookiesToDelete = ["ac-state-key", "post_login_redirect_url"];
+    console.log(cookiesToDelete);
 
     // Delete each cookie specifically
     cookiesToDelete.forEach((cookieName) => {
