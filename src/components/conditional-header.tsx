@@ -4,7 +4,10 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
-import { LoginButton, SignUpButton } from "@/components/auth-buttons";
+import {
+  RegisterLink,
+  LoginLink,
+} from "@kinde-oss/kinde-auth-nextjs/components";
 
 interface ConditionalHeaderProps {
   user: any;
@@ -52,8 +55,12 @@ export function ConditionalHeader({
         <div>
           {!isAuthenticated ? (
             <div className="flex items-center gap-2">
-              <LoginButton className="text-sm text-gray-300 hover:text-blue-400 transition-colors px-3 py-1.5" />
-              <SignUpButton className="text-sm bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-full transition-colors" />
+              <LoginLink className="text-sm text-gray-300 hover:text-blue-400 transition-colors px-3 py-1.5 cursor-pointer">
+                Sign in
+              </LoginLink>
+              <RegisterLink className="text-sm bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-full cursor-pointer transition-colors">
+                Sign up
+              </RegisterLink>
             </div>
           ) : (
             <div className="flex items-center gap-3 bg-gray-800/70 hover:bg-gray-800 transition-colors px-3 py-1.5 rounded-full">

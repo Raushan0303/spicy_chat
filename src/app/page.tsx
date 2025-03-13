@@ -3,7 +3,10 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { getPublicChatbots } from "@/app/actions/chatbot";
-import { LoginButton, SignUpButton } from "@/components/auth-buttons";
+import {
+  LoginLink,
+  RegisterLink,
+} from "@kinde-oss/kinde-auth-nextjs/components";
 
 export default async function Home() {
   const { isAuthenticated } = getKindeServerSession();
@@ -101,8 +104,19 @@ export default async function Home() {
               </>
             ) : (
               <>
-                <SignUpButton className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-full shadow-lg transition-all duration-300 text-sm md:text-base" />
-                <LoginButton className="bg-black/40 backdrop-blur-sm border-white/30 hover:bg-black/60 hover:border-white/50 rounded-full transition-all duration-300 text-sm md:text-base" />
+                <RegisterLink>
+                  <Button className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-full shadow-lg transition-all duration-300 text-sm md:text-base">
+                    Sign Up
+                  </Button>
+                </RegisterLink>
+                <LoginLink>
+                  <Button
+                    variant="outline"
+                    className="bg-black/40 backdrop-blur-sm border-white/30 hover:bg-black/60 hover:border-white/50 rounded-full transition-all duration-300 text-sm md:text-base"
+                  >
+                    Log In
+                  </Button>
+                </LoginLink>
               </>
             )}
           </div>
