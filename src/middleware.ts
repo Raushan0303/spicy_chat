@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
 import { NextResponse } from "next/server";
-import { getIronSession } from "iron-session/edge";
+import { sealData, unsealData } from "iron-session";
 import { sessionOptions } from "./lib/session";
 import { nanoid } from "nanoid";
 
@@ -11,13 +11,32 @@ async function sessionMiddleware(request: NextRequest) {
 
   // Only handle Kinde auth-related routes
   if (request.nextUrl.pathname.startsWith("/api/auth")) {
-    const session = await getIronSession(request, response, sessionOptions);
+    const cookieValue = request.cookies.get("spicy_chat_session")?.value;
+    let session: { kindeState?: string } = {};
+
+    if (cookieValue) {
+      try {
+        session = await unsealData(cookieValue, {
+          password: sessionOptions.password,
+        });
+      } catch (error) {
+        console.error("Failed to unseal session:", error);
+      }
+    }
 
     // If this is the start of the auth flow, generate and store a new state
     if (request.nextUrl.pathname === "/api/auth/login") {
       const state = nanoid();
       session.kindeState = state;
-      await session.save();
+      const sealedSession = await sealData(session, {
+        password: sessionOptions.password,
+      });
+
+      response.cookies.set(
+        "spicy_chat_session",
+        sealedSession,
+        sessionOptions.cookieOptions
+      );
     }
 
     // If this is the callback, verify the state
@@ -39,7 +58,14 @@ async function sessionMiddleware(request: NextRequest) {
 
       // Clear the state after successful verification
       session.kindeState = undefined;
-      await session.save();
+      const sealedSession = await sealData(session, {
+        password: sessionOptions.password,
+      });
+      response.cookies.set(
+        "spicy_chat_session",
+        sealedSession,
+        sessionOptions.cookieOptions
+      );
     }
   }
 
