@@ -1,42 +1,43 @@
-import { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
 
-export default function middleware(req: NextRequest) {
-  // Only apply authentication to protected routes
-  const path = req.nextUrl.pathname;
+const STATE_COOKIE_NAME = "kinde_state";
 
-  // Public routes that don't require authentication
-  const publicRoutes = ["/", "/chatbots", "/api/chatbots"];
+async function handleSession(request: NextRequest) {
+  const response = NextResponse.next();
 
-  // Check if the current path is a public route
-  const isPublicRoute = publicRoutes.some(
-    (route) =>
-      path === route ||
-      (path.startsWith(`${route}/`) && !path.includes("/create"))
-  );
+  // For auth callback, verify state
+  if (request.nextUrl.pathname.endsWith("/kinde_callback")) {
+    const state = request.nextUrl.searchParams.get("state");
+    const storedState = request.cookies.get(STATE_COOKIE_NAME)?.value;
 
-  // Skip authentication for public routes
-  if (isPublicRoute) {
-    return;
+    if (!state || !storedState || state !== storedState) {
+      return NextResponse.json(
+        { error: "Invalid state parameter" },
+        { status: 400 }
+      );
+    }
+
+    // Clear state after verification
+    response.cookies.delete(STATE_COOKIE_NAME);
   }
 
-  // Apply authentication for protected routes
-  return withAuth(req);
+  // For auth initiation, store state
+  if (request.nextUrl.pathname.startsWith("/api/auth/login")) {
+    const state = Math.random().toString(36).substring(2);
+    response.cookies.set(STATE_COOKIE_NAME, state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+  }
+
+  return response;
 }
 
-export const config = {
-  matcher: [
-    // Protected routes
-    "/dashboard/:path*",
-    "/profile/:path*",
-    "/chats/:path*",
-    "/personas/:path*",
-    "/chatbots/create/:path*",
-    "/personas/create/:path*",
-    "/api/chat/:path*",
-    "/api/images/generate/:path*",
+export default withAuth(handleSession);
 
-    // Exclude public routes
-    "/((?!_next/static|_next/image|favicon.ico|assets|api/chatbots/[^/]+$).*)",
-  ],
+export const config = {
+  matcher: ["/api/auth/:path*", "/api/chatbots/:path*", "/api/personas/:path*"],
 };
