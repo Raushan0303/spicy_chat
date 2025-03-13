@@ -1,42 +1,53 @@
-import { NextRequest } from "next/server";
 import { withAuth } from "@kinde-oss/kinde-auth-nextjs/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default function middleware(req: NextRequest) {
-  // Only apply authentication to protected routes
-  const path = req.nextUrl.pathname;
+export default async function middleware(request: NextRequest) {
+  // Add auth middleware
+  const authResponse = await withAuth(request);
 
-  // Public routes that don't require authentication
-  const publicRoutes = ["/", "/chatbots", "/api/chatbots"];
-
-  // Check if the current path is a public route
-  const isPublicRoute = publicRoutes.some(
-    (route) =>
-      path === route ||
-      (path.startsWith(`${route}/`) && !path.includes("/create"))
-  );
-
-  // Skip authentication for public routes
-  if (isPublicRoute) {
-    return;
+  // If auth response is not a NextResponse, return it as is
+  if (!(authResponse instanceof NextResponse)) {
+    return authResponse;
   }
 
-  // Apply authentication for protected routes
-  return withAuth(req);
+  // Add CORS headers for API routes
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    const origin = request.headers.get("origin") || "";
+    const allowedOrigins = [
+      "http://localhost:3000",
+      process.env.NEXT_PUBLIC_APP_URL || "",
+    ].filter(Boolean);
+
+    if (allowedOrigins.includes(origin)) {
+      const response = new NextResponse(authResponse.body, authResponse);
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set("Access-Control-Allow-Credentials", "true");
+      response.headers.set(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, OPTIONS"
+      );
+      response.headers.set(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization"
+      );
+      return response;
+    }
+  }
+
+  return authResponse;
 }
 
 export const config = {
   matcher: [
-    // Protected routes
-    "/dashboard/:path*",
-    "/profile/:path*",
-    "/chats/:path*",
-    "/personas/:path*",
-    "/chatbots/create/:path*",
-    "/personas/create/:path*",
-    "/api/chat/:path*",
-    "/api/images/generate/:path*",
-
-    // Exclude public routes
-    "/((?!_next/static|_next/image|favicon.ico|assets|api/chatbots/[^/]+$).*)",
+    // Protected routes that require authentication
+    "/settings/:path*",
+    "/personas/create",
+    "/chatbots/create",
+    "/api/chatbots/:path*",
+    "/api/personas/:path*",
+    "/api/images/:path*",
+    // Auth routes
+    "/api/auth/:path*",
   ],
 };
