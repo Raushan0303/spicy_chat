@@ -7,13 +7,36 @@ import {
 } from "@kinde-oss/kinde-auth-nextjs/components";
 
 const Auth = () => {
+  const clearAllCookies = () => {
+    // Get all cookies
+    const cookies = document.cookie.split(";");
+
+    // For each cookie found
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i];
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+
+      // Delete the cookie by setting expired date in the past
+      // Important: handle both root path and all potential subpaths
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+
+      // Also clear for potential subdomains by setting domain to root
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+
+      // If you're on a subdomain and need to clear parent domain cookies
+      const domain = window.location.hostname;
+      if (domain.indexOf(".") !== -1) {
+        const rootDomain = domain.substring(domain.indexOf("."));
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${rootDomain}`;
+      }
+    }
+
+    console.log("All cookies cleared successfully!");
+  };
+
   const handleAuthClick = () => {
-    document.cookie.split(";").forEach((cookie) => {
-      document.cookie = cookie
-        .replace(/^ +/, "")
-        .replace(/=.*/, "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/");
-    });
-    console.log("Cookies cleared!");
+    clearAllCookies();
     // Proceed with login or signup logic
   };
 
