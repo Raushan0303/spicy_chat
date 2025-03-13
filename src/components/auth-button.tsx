@@ -7,36 +7,31 @@ import {
 } from "@kinde-oss/kinde-auth-nextjs/components";
 
 const Auth = () => {
-  const clearAllCookies = () => {
-    // Get all cookies
-    const cookies = document.cookie.split(";");
+  const clearSpecificCookies = () => {
+    // List of cookies to delete explicitly
+    const cookiesToDelete = ["ac-state-key", "post_login_redirect_url"];
 
-    // For each cookie found
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i];
-      const eqPos = cookie.indexOf("=");
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+    // Delete each cookie specifically
+    cookiesToDelete.forEach((cookieName) => {
+      // Standard path
+      document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
 
-      // Delete the cookie by setting expired date in the past
-      // Important: handle both root path and all potential subpaths
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      // With domain attribute to ensure it's removed from correct domain
+      document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
 
-      // Also clear for potential subdomains by setting domain to root
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-
-      // If you're on a subdomain and need to clear parent domain cookies
+      // Check if we need to handle parent domain cookies
       const domain = window.location.hostname;
       if (domain.indexOf(".") !== -1) {
         const rootDomain = domain.substring(domain.indexOf("."));
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${rootDomain}`;
+        document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${rootDomain}`;
       }
-    }
+    });
 
-    console.log("All cookies cleared successfully!");
+    console.log("Specified cookies cleared successfully!");
   };
 
   const handleAuthClick = () => {
-    clearAllCookies();
+    clearSpecificCookies();
     // Proceed with login or signup logic
   };
 
