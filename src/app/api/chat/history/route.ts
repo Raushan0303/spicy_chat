@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { Chat } from "@/models/Chat";
-import { Chatbot } from "@/models/Chatbot";
+import { currentUser } from "@clerk/nextjs/server";
+import { DatabaseService } from "@/services/database.service";
 
 // GET endpoint to retrieve chat history
 export async function GET(request: NextRequest) {
   try {
-    // Get authenticated user
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
-    const user = authenticated ? await getUser() : null;
+    // Get the current user from Clerk
+    const user = await currentUser();
 
-    if (!user || !user.id) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    // If no user is authenticated, return unauthorized
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get chatbotId from URL params
@@ -30,110 +25,156 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify chatbot exists
-    const chatbot = await Chatbot.get(chatbotId);
+    const chatbot = await DatabaseService.getChatbot(chatbotId);
     if (!chatbot) {
       return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
     }
 
-    // Get chat history for this user and chatbot
-    const chats = await Chat.query("chatbotId")
-      .eq(chatbotId)
-      .where("userId")
-      .eq(user.id)
-      .exec();
+    // Get conversations for this user and chatbot
+    const conversations = await DatabaseService.getUserChatbotConversations(
+      user.id,
+      chatbotId
+    );
 
-    // If no chat history exists, return empty array
-    if (!chats || chats.length === 0) {
-      return NextResponse.json({ history: [] });
+    // If no conversations exist, return empty array
+    if (!conversations || conversations.length === 0) {
+      return NextResponse.json({ conversations: [], messages: [] });
     }
 
-    // Sort chats by createdAt (newest first)
-    const sortedChats = chats.sort((a, b) => {
+    // Sort conversations by createdAt (newest first)
+    const sortedConversations = conversations.sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-    // Return the most recent chat
+    // Get messages for the most recent conversation
+    const messages = await DatabaseService.getConversationMessages(
+      sortedConversations[0].id
+    );
+
     return NextResponse.json({
-      history: sortedChats[0].messages || [],
-      chatId: sortedChats[0].id,
+      conversations: sortedConversations,
+      messages,
+      conversationId: sortedConversations[0].id,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error retrieving chat history:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to retrieve chat history" },
+      { error: "Failed to retrieve chat history" },
       { status: 500 }
     );
   }
 }
 
-// POST endpoint to save chat history
+// POST endpoint to save a new message
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
-    const user = authenticated ? await getUser() : null;
+    // Get the current user from Clerk
+    const user = await currentUser();
 
-    if (!user || !user.id) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    // If no user is authenticated, return unauthorized
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse request body
     const body = await request.json();
-    const { chatbotId, messages, chatId } = body;
+    const { conversationId, content, role } = body;
 
-    if (!chatbotId || !messages || !Array.isArray(messages)) {
+    if (!conversationId || !content || !role) {
       return NextResponse.json(
-        { error: "Missing required fields: chatbotId and messages array" },
+        { error: "Missing required fields: conversationId, content, and role" },
         { status: 400 }
       );
     }
 
-    // Verify chatbot exists
-    const chatbot = await Chatbot.get(chatbotId);
-    if (!chatbot) {
-      return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
+    // Verify conversation exists and belongs to user
+    const conversation = await DatabaseService.getConversation(conversationId);
+    if (!conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 }
+      );
     }
 
-    let chat;
-
-    // If chatId is provided, update existing chat
-    if (chatId) {
-      chat = await Chat.get(chatId);
-
-      // Verify the chat belongs to this user
-      if (chat && chat.userId === user.id) {
-        chat.messages = messages;
-        chat.updatedAt = new Date().toISOString();
-        await chat.save();
-      } else {
-        // If chat doesn't exist or doesn't belong to user, create new
-        chat = await Chat.create({
-          chatbotId,
-          userId: user.id,
-          messages,
-        });
-      }
-    } else {
-      // Create new chat
-      chat = await Chat.create({
-        chatbotId,
-        userId: user.id,
-        messages,
-      });
+    if (conversation.userId !== user.id) {
+      return NextResponse.json(
+        {
+          error:
+            "You don't have permission to add messages to this conversation",
+        },
+        { status: 403 }
+      );
     }
+
+    // Create new message
+    const message = await DatabaseService.createMessage({
+      conversationId,
+      content,
+      role,
+    });
 
     return NextResponse.json({
       success: true,
-      chatId: chat.id,
+      message,
     });
-  } catch (error: any) {
-    console.error("Error saving chat history:", error);
+  } catch (error) {
+    console.error("Error saving message:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to save chat history" },
+      { error: "Failed to save message" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE endpoint to delete a conversation
+export async function DELETE(request: NextRequest) {
+  try {
+    // Get the current user from Clerk
+    const user = await currentUser();
+
+    // If no user is authenticated, return unauthorized
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get conversationId from URL params
+    const { searchParams } = new URL(request.url);
+    const conversationId = searchParams.get("conversationId");
+
+    if (!conversationId) {
+      return NextResponse.json(
+        { error: "Missing required parameter: conversationId" },
+        { status: 400 }
+      );
+    }
+
+    // Verify conversation exists and belongs to user
+    const conversation = await DatabaseService.getConversation(conversationId);
+    if (!conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 }
+      );
+    }
+
+    if (conversation.userId !== user.id) {
+      return NextResponse.json(
+        { error: "You don't have permission to delete this conversation" },
+        { status: 403 }
+      );
+    }
+
+    // Delete the conversation
+    await DatabaseService.deleteConversation(conversationId);
+
+    return NextResponse.json({
+      success: true,
+      message: "Conversation deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting conversation:", error);
+    return NextResponse.json(
+      { error: "Failed to delete conversation" },
       { status: 500 }
     );
   }

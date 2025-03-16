@@ -1,7 +1,7 @@
 import { getUserPersonas } from "@/app/actions/persona";
 import { createChatbot } from "@/app/actions/chatbot";
 import { redirect } from "next/navigation";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { CreateChatbotForm } from "@/components/create-chatbot-form";
 import {
@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageSquareText } from "lucide-react";
+import { syncUserWithDatabase } from "@/app/actions/auth";
 
 export default async function CreateChatbotPage() {
-  const { isAuthenticated, getUser } = getKindeServerSession();
-  const authenticated = await isAuthenticated();
-  const user = authenticated ? await getUser() : null;
+  const user = await currentUser();
+  const authenticated = !!user;
 
   // If not authenticated, show a friendly message instead of immediate redirect
   if (!authenticated) {
@@ -38,7 +38,7 @@ export default async function CreateChatbotPage() {
               in to get started with building your AI assistant.
             </p>
             <div className="flex gap-4">
-              <Link href="/api/auth/login?post_login_redirect_url=/chatbots/create">
+              <Link href="/sign-in?redirect_url=/chatbots/create">
                 <Button className="bg-blue-600 hover:bg-blue-700 transition-colors">
                   Sign In
                 </Button>
@@ -57,6 +57,9 @@ export default async function CreateChatbotPage() {
       </div>
     );
   }
+
+  // Sync user with database
+  await syncUserWithDatabase();
 
   // Get user's personas for the form
   const personasResult = await getUserPersonas();

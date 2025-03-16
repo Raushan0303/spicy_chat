@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { getChatbotModel } from "@/models/Chatbot";
 import { revalidatePath } from "next/cache";
 
@@ -20,9 +20,8 @@ export async function POST(request: NextRequest) {
   console.log("Generate image API route called");
 
   try {
-    // Get the authenticated user
-    const { getUser } = getKindeServerSession();
-    const user = await getUser();
+    // Get the authenticated user using Clerk
+    const user = await currentUser();
     console.log("user", user);
 
     // Log cookie information for debugging
@@ -39,9 +38,15 @@ export async function POST(request: NextRequest) {
 
     // More detailed user logging
     console.log("User object:", user ? "Present" : "Missing");
+
     if (user) {
       console.log("User ID:", user.id ? user.id : "Missing");
-      console.log("User email:", user.email ? user.email : "Missing");
+      console.log(
+        "User email:",
+        user.emailAddresses[0]?.emailAddress
+          ? user.emailAddresses[0].emailAddress
+          : "Missing"
+      );
     } else {
       console.error("No user object found in session");
     }

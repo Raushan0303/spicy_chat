@@ -1,14 +1,12 @@
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function requireAuth(req: NextRequest) {
-  const { isAuthenticated, getUser } = getKindeServerSession();
-  const authenticated = await isAuthenticated();
+  const user = await currentUser();
 
-  if (!authenticated) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await getUser();
   return user;
 }

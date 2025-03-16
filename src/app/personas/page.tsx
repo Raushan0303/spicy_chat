@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { getUserPersonas } from "@/app/actions/persona";
+import { syncUserWithDatabase } from "@/app/actions/auth";
 import {
   Card,
   CardContent,
@@ -20,12 +21,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 export default async function PersonasPage() {
-  const { isAuthenticated, getUser } = getKindeServerSession();
-  const authenticated = await isAuthenticated();
-  const user = authenticated ? await getUser() : null;
+  // Get the current user from Clerk
+  const user = await currentUser();
+
+  // Sync user with database if authenticated
+  if (user) {
+    await syncUserWithDatabase();
+  }
 
   // If not authenticated, show a friendly message instead of immediate redirect
-  if (!authenticated) {
+  if (!user) {
     return (
       <div className="container mx-auto py-12 px-4">
         <Card className="border-gray-800 bg-gray-900/60 backdrop-blur-sm shadow-xl">
@@ -43,7 +48,7 @@ export default async function PersonasPage() {
               to get started with creating unique AI personalities.
             </p>
             <div className="flex gap-4">
-              <Link href="/api/auth/login?post_login_redirect_url=/personas">
+              <Link href="/sign-in?redirect_url=/personas">
                 <Button className="bg-blue-600 hover:bg-blue-700 transition-colors">
                   Sign In
                 </Button>

@@ -1,31 +1,25 @@
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { DatabaseService } from "@/services/database.service";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { syncUserWithDatabase } from "../actions/auth";
 
 export default async function ProfilePage() {
-  // Get the authenticated user from Kinde
-  const { getUser, isAuthenticated } = getKindeServerSession();
-  const authenticated = await isAuthenticated();
+  // Get the authenticated user from Clerk
+  const user = await currentUser();
 
-  // Redirect to login if not authenticated, but with a better UX
-  if (!authenticated) {
-    redirect("/api/auth/login?post_login_redirect_url=/profile");
+  // Redirect to login if not authenticated
+  if (!user) {
+    redirect("/sign-in?redirect_url=/profile");
   }
 
-  // Get the user from Kinde
-  const kindeUser = await getUser();
-
-  // Redirect if no user found
-  if (!kindeUser || !kindeUser.id) {
-    redirect("/auth/error?reason=no_user");
-  }
+  // Sync user with database first
+  await syncUserWithDatabase();
 
   // Get the user from the database
-  const dbUser = await DatabaseService.getUserById(kindeUser.id);
+  const dbUser = await DatabaseService.getUserById(user.id);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -33,20 +27,20 @@ export default async function ProfilePage() {
         <h1 className="text-3xl font-bold mb-8">User Profile</h1>
 
         <div className="bg-gray-900 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Kinde User Information</h2>
+          <h2 className="text-xl font-semibold mb-4">Clerk User Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-gray-400">ID:</p>
-              <p>{kindeUser.id}</p>
+              <p>{user.id}</p>
             </div>
             <div>
               <p className="text-gray-400">Email:</p>
-              <p>{kindeUser.email}</p>
+              <p>{user.emailAddresses[0]?.emailAddress}</p>
             </div>
             <div>
               <p className="text-gray-400">Name:</p>
               <p>
-                {kindeUser.given_name} {kindeUser.family_name}
+                {user.firstName} {user.lastName}
               </p>
             </div>
           </div>
@@ -91,8 +85,15 @@ export default async function ProfilePage() {
               <li>Your user record was deleted</li>
             </ul>
             <p>
-              Try signing out and signing in again to create your user record.
+              Try refreshing the page or signing out and signing in again to
+              create your user record.
             </p>
+            <Button
+              onClick={() => window.location.reload()}
+              className="bg-blue-600 hover:bg-blue-700 mr-2 mt-2"
+            >
+              Refresh Page
+            </Button>
           </div>
         )}
 
@@ -102,9 +103,9 @@ export default async function ProfilePage() {
               Back to Home
             </Button>
           </Link>
-          <LogoutLink postLogoutRedirectURL="/">
+          <Link href="/api/auth/logout">
             <Button className="bg-red-600 hover:bg-red-700">Sign Out</Button>
-          </LogoutLink>
+          </Link>
         </div>
       </div>
     </div>

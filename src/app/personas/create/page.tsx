@@ -1,6 +1,6 @@
 import { createPersona } from "@/app/actions/persona";
 import { redirect } from "next/navigation";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,10 +31,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ImageUploader } from "@/components/image-uploader";
+import { syncUserWithDatabase } from "@/app/actions/auth";
 
 export default async function CreatePersonaPage() {
-  const { isAuthenticated } = getKindeServerSession();
-  const authenticated = await isAuthenticated();
+  const user = await currentUser();
+  const authenticated = !!user;
 
   // If not authenticated, show a friendly message instead of immediate redirect
   if (!authenticated) {
@@ -55,7 +56,7 @@ export default async function CreatePersonaPage() {
               in to get started with creating unique AI personalities.
             </p>
             <div className="flex gap-4">
-              <Link href="/api/auth/login?post_login_redirect_url=/personas/create">
+              <Link href="/sign-in?redirect_url=/personas/create">
                 <Button className="bg-blue-600 hover:bg-blue-700 transition-colors">
                   Sign In
                 </Button>
@@ -74,6 +75,9 @@ export default async function CreatePersonaPage() {
       </div>
     );
   }
+
+  // Sync user with database
+  await syncUserWithDatabase();
 
   // Client action to handle form submission
   async function handleCreatePersona(formData: FormData) {

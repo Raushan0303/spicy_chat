@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 
 // Define the Hugging Face API endpoint for inference
 const HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models";
@@ -17,14 +17,11 @@ type ModelKey = keyof typeof AVAILABLE_MODELS;
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the authenticated user
-    const { isAuthenticated, getUser } = getKindeServerSession();
-
-    const authenticated = await isAuthenticated();
-    const user = await getUser();
+    // Get the authenticated user using Clerk
+    const user = await currentUser();
     console.log("user", user);
-    console.log("authenticated", authenticated);
-    if (!authenticated) {
+
+    if (!user) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }

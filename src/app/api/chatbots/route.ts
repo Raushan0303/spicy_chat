@@ -1,58 +1,80 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { createChatbot } from "@/app/actions/chatbot";
+import { currentUser } from "@clerk/nextjs/server";
+import { DatabaseService } from "@/services/database.service";
+import { revalidatePath } from "next/cache";
+
+export async function GET(request: NextRequest) {
+  try {
+    // Get the current user from Clerk
+    const user = await currentUser();
+
+    // If no user is authenticated, return unauthorized
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get user's chatbots
+    const chatbots = await DatabaseService.getUserChatbots(user.id);
+
+    return NextResponse.json({
+      success: true,
+      chatbots,
+    });
+  } catch (error) {
+    console.error("Error fetching chatbots:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch chatbots" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    // Get the current user from Clerk
+    const user = await currentUser();
 
-    if (!authenticated) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    // If no user is authenticated, return unauthorized
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await getUser();
-    if (!user || !user.id) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Parse the request body
+    // Parse request body
     const body = await request.json();
+    const { name, description, personaId, visibility = "private" } = body;
 
-    // Validate required fields
-    if (!body.name || body.name.trim() === "") {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    }
-
-    if (!body.personaId) {
+    if (!name || !personaId) {
       return NextResponse.json(
-        { error: "Persona is required" },
+        { error: "Missing required fields: name and personaId" },
         { status: 400 }
       );
     }
 
-    // Use the existing server action to create the chatbot
-    const result = await createChatbot({
-      name: body.name,
-      description: body.description || "",
-      visibility: body.visibility === "public" ? "public" : "private",
-      personaId: body.personaId,
-      imageUrl: body.imageUrl || "",
+    // Create the chatbot
+    const chatbot = await DatabaseService.createChatbot({
+      name,
+      description,
+      personaId,
+      visibility,
+      userId: user.id,
+      username:
+        user.username ||
+        `${user.firstName} ${user.lastName}`.trim() ||
+        "Anonymous",
     });
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.message },
-        { status: result.status || 500 }
-      );
-    }
+    // Revalidate paths
+    revalidatePath("/chatbots");
+    revalidatePath(`/chatbots/${chatbot.id}`);
 
-    return NextResponse.json(result, { status: 201 });
-  } catch (error: any) {
-    console.error("Error in chatbots API:", error);
+    return NextResponse.json({
+      success: true,
+      chatbot,
+    });
+  } catch (error) {
+    console.error("Error creating chatbot:", error);
     return NextResponse.json(
-      { error: error.message || "An unexpected error occurred" },
+      { error: "Failed to create chatbot" },
       { status: 500 }
     );
   }

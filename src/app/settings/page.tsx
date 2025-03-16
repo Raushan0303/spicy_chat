@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { redirect, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";
 import { getUserData } from "../actions/user";
 import {
   getUserChatbots,
@@ -14,6 +13,8 @@ import {
 import { UserAvatar } from "@/components/user-avatar";
 import { SettingsChatbotCard } from "@/components/settings-chatbot-card";
 import { toast } from "react-hot-toast";
+import { useUser } from "@clerk/nextjs";
+import { syncUserWithDatabase } from "../actions/auth";
 
 // Types for our data
 type UserData = {
@@ -40,56 +41,96 @@ type Chatbot = {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useUser();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Redirect if not signed in
+    if (isLoaded && !isSignedIn) {
+      router.push("/sign-in?redirect_url=/settings");
+      return;
+    }
+
+    if (!isLoaded) return;
+
     async function fetchData() {
       try {
+        console.log("Starting to fetch user data...");
+
+        // Sync user with database first
+        await syncUserWithDatabase();
+        console.log("User synced with database");
+
         // Fetch user data
         const userResult = await getUserData();
+        console.log("User data result:", userResult);
+
         if (!userResult.success) {
           if (userResult.status === 401) {
-            return redirect(
-              "/api/auth/login?post_login_redirect_url=/settings"
-            );
+            router.push("/sign-in?redirect_url=/settings");
+            return;
           }
           throw new Error(userResult.message);
         }
 
         if (userResult.user) {
-          setUserData(userResult.user as UserData);
+          // Create a clean copy of the user data to avoid serialization issues
+          const cleanUserData = {
+            id: userResult.user.id || "",
+            email: userResult.user.email || "",
+            firstName: userResult.user.firstName || null,
+            lastName: userResult.user.lastName || null,
+            picture: userResult.user.picture || null,
+            username: userResult.user.username || null,
+            tokens: userResult.user.tokens || 0,
+            createdAt: userResult.user.createdAt || null,
+            updatedAt: userResult.user.updatedAt || null,
+          };
+
+          console.log("Setting user data:", cleanUserData);
+          setUserData(cleanUserData);
+        } else {
+          console.error("No user data returned");
+          setError("No user data available");
         }
 
         // Fetch user's chatbots
         const chatbotsResult = await getUserChatbots();
+        console.log("Chatbots result:", chatbotsResult);
+
         if (chatbotsResult.success && chatbotsResult.chatbots) {
           // Convert the response to the expected Chatbot[] type
           const typedChatbots = Array.isArray(chatbotsResult.chatbots)
             ? chatbotsResult.chatbots.map((chatbot: any) => ({
-                id: chatbot.id,
-                name: chatbot.name,
-                description: chatbot.description,
-                imageUrl: chatbot.imageUrl,
-                visibility: chatbot.visibility,
-                createdAt: chatbot.createdAt,
+                id: chatbot.id || "",
+                name: chatbot.name || "",
+                description: chatbot.description || "",
+                imageUrl: chatbot.imageUrl || "",
+                visibility: chatbot.visibility || "private",
+                createdAt: chatbot.createdAt || new Date().toISOString(),
                 interactions: chatbot.interactions || 0,
               }))
             : [];
+          console.log("Setting chatbots:", typedChatbots);
           setChatbots(typedChatbots);
         }
       } catch (err) {
         console.error("Error fetching data:", err);
-        setError("Failed to load user data. Please try again later.");
+        setError(
+          `Failed to load user data: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
       } finally {
         setLoading(false);
       }
     }
 
     fetchData();
-  }, []);
+  }, [isLoaded, isSignedIn, router]);
 
   // Handle chatbot visibility toggle
   const handleVisibilityToggle = async (
@@ -256,109 +297,14 @@ export default function SettingsPage() {
                         d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                       />
                     </svg>
-                    Chatbots
+                    My Chatbots
                   </Button>
                 </Link>
-                <div className="pt-4 mt-4 border-t border-gray-700/50">
-                  <LogoutLink
-                    postLogoutRedirectURL="/"
-                    className="block w-full"
+                <Link href="/personas" className="block w-full">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start hover:bg-gray-700/50 rounded-xl transition-all duration-300"
                   >
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-xl transition-all duration-300"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 mr-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
-                      </svg>
-                      Sign Out
-                    </Button>
-                  </LogoutLink>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-              Manage Your Chatbots
-            </h1>
-
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <p className="text-gray-400">
-                View, manage, and control your AI chatbots
-              </p>
-              <Link href="/chatbots/create">
-                <Button className="bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg transition-all duration-300 px-5">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Create New Chatbot
-                </Button>
-              </Link>
-            </div>
-
-            {chatbots.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {chatbots.map((chatbot) => (
-                  <SettingsChatbotCard
-                    key={chatbot.id}
-                    chatbot={chatbot}
-                    onVisibilityToggle={handleVisibilityToggle}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-gradient-to-br from-gray-800/30 to-gray-900/30 border border-gray-700 rounded-xl p-8 text-center shadow-xl">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-10 w-10 text-blue-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                  No Chatbots Yet
-                </h3>
-                <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                  You haven't created any chatbots yet. Create your first one to
-                  start building your AI personality collection!
-                </p>
-                <Link href="/chatbots/create">
-                  <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg shadow-lg transition-all duration-300 px-6 py-2 text-lg">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5 mr-2"
@@ -370,14 +316,168 @@ export default function SettingsPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M12 4v16m8-8H4"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                       />
                     </svg>
-                    Create Your First Chatbot
+                    My Personas
+                  </Button>
+                </Link>
+                <Link href="/sign-out" className="block w-full">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start hover:bg-red-900/30 hover:text-red-300 rounded-xl transition-all duration-300"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Sign Out
                   </Button>
                 </Link>
               </div>
-            )}
+            </div>
+          </div>
+
+          {/* Main content */}
+          <div className="flex-1">
+            <div className="bg-gradient-to-b from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl mb-8">
+              <h1 className="text-2xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-300 to-purple-400">
+                Account Settings
+              </h1>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h2 className="text-lg font-semibold mb-3">Profile</h2>
+                  <div className="bg-gray-800/50 p-4 rounded-xl">
+                    <div className="mb-3">
+                      <label className="block text-gray-400 text-sm mb-1">
+                        Name
+                      </label>
+                      <div className="text-white">
+                        {userData.firstName} {userData.lastName}
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="block text-gray-400 text-sm mb-1">
+                        Email
+                      </label>
+                      <div className="text-white">{userData.email}</div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="block text-gray-400 text-sm mb-1">
+                        Username
+                      </label>
+                      <div className="text-white">
+                        {userData.username || "Not set"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-semibold mb-3">Account</h2>
+                  <div className="bg-gray-800/50 p-4 rounded-xl">
+                    <div className="mb-3">
+                      <label className="block text-gray-400 text-sm mb-1">
+                        Tokens
+                      </label>
+                      <div className="text-white flex items-center">
+                        <span className="text-xl font-bold text-blue-400 mr-2">
+                          {userData.tokens}
+                        </span>
+                        <span className="text-gray-400 text-sm">
+                          available tokens
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="block text-gray-400 text-sm mb-1">
+                        Account Created
+                      </label>
+                      <div className="text-white">
+                        {userData.createdAt
+                          ? new Date(userData.createdAt).toLocaleDateString()
+                          : "Unknown"}
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="block text-gray-400 text-sm mb-1">
+                        Last Updated
+                      </label>
+                      <div className="text-white">
+                        {userData.updatedAt
+                          ? new Date(userData.updatedAt).toLocaleDateString()
+                          : "Unknown"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Chatbots section */}
+            <div className="bg-gradient-to-b from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-300 to-purple-400">
+                  My Chatbots
+                </h2>
+                <Link href="/chatbots/create">
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    Create New
+                  </Button>
+                </Link>
+              </div>
+
+              {chatbots.length === 0 ? (
+                <div className="text-center py-12 bg-gray-800/30 rounded-xl">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-16 w-16 mx-auto text-gray-600 mb-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                  </svg>
+                  <h3 className="text-xl font-medium mb-2">No chatbots yet</h3>
+                  <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                    Create your first chatbot to start having conversations with
+                    your own AI characters.
+                  </p>
+                  <Link href="/chatbots/create">
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      Create Your First Chatbot
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {chatbots.map((chatbot) => (
+                    <SettingsChatbotCard
+                      key={chatbot.id}
+                      chatbot={chatbot}
+                      onVisibilityToggle={handleVisibilityToggle}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

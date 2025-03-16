@@ -4,22 +4,13 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
-import {
-  RegisterLink,
-  LoginLink,
-} from "@kinde-oss/kinde-auth-nextjs/components";
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 
-interface ConditionalHeaderProps {
-  user: any;
-  isAuthenticated: boolean;
-}
-
-export function ConditionalHeader({
-  user,
-  isAuthenticated,
-}: ConditionalHeaderProps) {
+export function ConditionalHeader() {
   const pathname = usePathname();
   const isHomePage = pathname === "/";
+  const { user, isLoaded } = useUser();
+  const isAuthenticated = isLoaded && !!user;
 
   if (!isHomePage) {
     return null;
@@ -55,29 +46,34 @@ export function ConditionalHeader({
         <div>
           {!isAuthenticated ? (
             <div className="flex items-center gap-2">
-              <LoginLink className="text-sm text-gray-300 hover:text-blue-400 transition-colors px-3 py-1.5 cursor-pointer">
-                Sign in
-              </LoginLink>
-              <RegisterLink className="text-sm bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-full cursor-pointer transition-colors">
-                Sign up
-              </RegisterLink>
+              <SignInButton mode="modal">
+                <button className="text-sm text-gray-300 hover:text-blue-400 transition-colors px-3 py-1.5 cursor-pointer">
+                  Sign in
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="text-sm bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-full cursor-pointer transition-colors">
+                  Sign up
+                </button>
+              </SignUpButton>
             </div>
           ) : (
             <div className="flex items-center gap-3 bg-gray-800/70 hover:bg-gray-800 transition-colors px-3 py-1.5 rounded-full">
-              {user?.picture ? (
+              {user?.imageUrl ? (
                 <UserAvatar
-                  src={user.picture}
-                  alt={user.given_name || "User"}
-                  fallback={user.given_name?.charAt(0) || "U"}
+                  src={user.imageUrl}
+                  alt={user.firstName || "User"}
+                  fallback={user.firstName?.charAt(0) || "U"}
                 />
               ) : (
                 <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center text-white font-medium">
-                  {user?.given_name?.charAt(0) || "U"}
+                  {user?.firstName?.charAt(0) || "U"}
                 </div>
               )}
               <span className="text-sm font-medium">
-                {user?.given_name || "Account"}
+                {user?.firstName || "Account"}
               </span>
+              <UserButton afterSignOutUrl="/" />
             </div>
           )}
         </div>

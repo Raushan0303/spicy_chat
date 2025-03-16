@@ -1,6 +1,6 @@
 "use server";
 
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { Chatbot } from "@/models/Chatbot";
 import { Persona } from "@/models/Persona";
 import { revalidatePath } from "next/cache";
@@ -20,16 +20,10 @@ export type ChatbotFormData = {
 export async function createChatbot(formData: ChatbotFormData) {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Validate required fields
@@ -98,7 +92,7 @@ export async function getPublicChatbots() {
     // Use a scan with filter to get all public chatbots
     const chatbots = await Chatbot.scan("visibility").eq("public").exec();
 
-    // Get user information for each chatbot
+    // Get user information for each chatbot and serialize them
     const enhancedChatbots = await Promise.all(
       chatbots.map(async (chatbot) => {
         try {
@@ -108,24 +102,34 @@ export async function getPublicChatbots() {
           // Try to get the user
           const user = await User.get(chatbot.userId);
 
+          // Serialize the chatbot first
+          const serializedChatbot = serializeChatbot(chatbot);
+          if (!serializedChatbot) return null;
+
           // Return chatbot with user information
           return {
-            ...chatbot,
+            ...serializedChatbot,
             username: user ? user.username : "Anonymous",
           };
         } catch (error) {
-          // If user not found, return chatbot with default username
+          // If user not found, return serialized chatbot with default username
+          const serializedChatbot = serializeChatbot(chatbot);
+          if (!serializedChatbot) return null;
+
           return {
-            ...chatbot,
+            ...serializedChatbot,
             username: "Anonymous",
           };
         }
       })
     );
 
+    // Filter out any null values
+    const filteredChatbots = enhancedChatbots.filter(Boolean);
+
     return {
       success: true,
-      chatbots: enhancedChatbots,
+      chatbots: filteredChatbots,
       status: 200,
     };
   } catch (error: any) {
@@ -139,29 +143,71 @@ export async function getPublicChatbots() {
 }
 
 /**
+ * Helper function to convert Dynamoose model to plain object
+ */
+function serializeChatbot(chatbot: any) {
+  if (!chatbot) return null;
+
+  // Convert to plain object
+  return {
+    id: chatbot.id,
+    name: chatbot.name || "",
+    description: chatbot.description || "",
+    visibility: chatbot.visibility || "private",
+    personaId: chatbot.personaId || "",
+    imageUrl: chatbot.imageUrl || "",
+    userId: chatbot.userId || "",
+    interactions: chatbot.interactions || 0,
+    createdAt: chatbot.createdAt || null,
+    updatedAt: chatbot.updatedAt || null,
+  };
+}
+
+/**
+ * Helper function to convert Dynamoose model to plain object for personas
+ */
+function serializePersona(persona: any) {
+  if (!persona) return null;
+
+  // Convert to plain object
+  return {
+    id: persona.id,
+    name: persona.name || "",
+    description: persona.description || "",
+    traits: persona.traits || [],
+    tone: persona.tone || "",
+    style: persona.style || "",
+    expertise: persona.expertise || [],
+    userId: persona.userId || "",
+    imageUrl: persona.imageUrl || "",
+    createdAt: persona.createdAt || null,
+    updatedAt: persona.updatedAt || null,
+  };
+}
+
+/**
  * Get all chatbots for the current user
  */
 export async function getUserChatbots() {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Get all chatbots for this user
     const chatbots = await Chatbot.query("userId").eq(user.id).exec();
 
+    // Serialize the chatbots to plain objects
+    const serializedChatbots = chatbots
+      .map((chatbot) => serializeChatbot(chatbot))
+      .filter(Boolean);
+
     return {
       success: true,
-      chatbots,
+      chatbots: serializedChatbots,
       status: 200,
     };
   } catch (error: any) {
@@ -180,9 +226,7 @@ export async function getUserChatbots() {
 export async function getChatbot(chatbotId: string) {
   try {
     // Verify authentication for user-specific access checks
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
-    const user = authenticated ? await getUser() : null;
+    const user = await currentUser();
 
     // Get the chatbot
     const chatbot = await Chatbot.get(chatbotId);
@@ -191,10 +235,20 @@ export async function getChatbot(chatbotId: string) {
       return { success: false, message: "Chatbot not found", status: 404 };
     }
 
+    // Serialize the chatbot
+    const serializedChatbot = serializeChatbot(chatbot);
+    if (!serializedChatbot) {
+      return {
+        success: false,
+        message: "Failed to process chatbot data",
+        status: 500,
+      };
+    }
+
     // Check access permissions
     if (
-      chatbot.visibility === "private" &&
-      (!user || chatbot.userId !== user.id)
+      serializedChatbot.visibility === "private" &&
+      (!user || serializedChatbot.userId !== user.id)
     ) {
       return {
         success: false,
@@ -204,12 +258,15 @@ export async function getChatbot(chatbotId: string) {
     }
 
     // Get the associated persona
-    const persona = await Persona.get(chatbot.personaId);
+    const persona = await Persona.get(serializedChatbot.personaId);
+
+    // Serialize the persona
+    const serializedPersona = serializePersona(persona);
 
     return {
       success: true,
-      chatbot,
-      persona,
+      chatbot: serializedChatbot,
+      persona: serializedPersona,
       status: 200,
     };
   } catch (error: any) {
@@ -287,16 +344,10 @@ export async function toggleChatbotVisibility(
 ) {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Get the chatbot
@@ -335,16 +386,10 @@ export async function toggleChatbotVisibility(
 export async function deleteChatbot(chatbotId: string) {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Get the chatbot
@@ -378,16 +423,10 @@ export async function deleteChatbot(chatbotId: string) {
 export async function removeChatbotImage(chatbotId: string) {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Get the chatbot
@@ -534,16 +573,10 @@ export async function updateChatbot(data: {
 }) {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Get the chatbot

@@ -1,6 +1,6 @@
 "use server";
 
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { Persona } from "@/models/Persona";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -21,16 +21,10 @@ export type PersonaFormData = {
 export async function createPersona(formData: PersonaFormData) {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Validate required fields
@@ -71,29 +65,50 @@ export async function createPersona(formData: PersonaFormData) {
 }
 
 /**
+ * Helper function to convert Dynamoose model to plain object
+ */
+function serializePersona(persona: any) {
+  if (!persona) return null;
+
+  // Convert to plain object
+  return {
+    id: persona.id,
+    name: persona.name || "",
+    description: persona.description || "",
+    traits: persona.traits || [],
+    tone: persona.tone || "",
+    style: persona.style || "",
+    expertise: persona.expertise || [],
+    userId: persona.userId || "",
+    imageUrl: persona.imageUrl || "",
+    createdAt: persona.createdAt || null,
+    updatedAt: persona.updatedAt || null,
+  };
+}
+
+/**
  * Server action to get all personas for the current user
  */
 export async function getUserPersonas() {
   try {
     // Verify authentication
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    const user = await currentUser();
 
-    if (!authenticated) {
+    if (!user) {
       return { success: false, message: "Not authenticated", status: 401 };
-    }
-
-    const user = await getUser();
-    if (!user || !user.id) {
-      return { success: false, message: "User not found", status: 404 };
     }
 
     // Get all personas for this user
     const personas = await Persona.query("userId").eq(user.id).exec();
 
+    // Serialize the personas to plain objects
+    const serializedPersonas = personas
+      .map((persona) => serializePersona(persona))
+      .filter(Boolean);
+
     return {
       success: true,
-      personas,
+      personas: serializedPersonas,
       status: 200,
     };
   } catch (error: any) {

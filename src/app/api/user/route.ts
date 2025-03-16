@@ -1,30 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { NextResponse } from "next/server";
+import { currentUser } from "@clerk/nextjs/server";
+import { syncUserWithDatabase } from "@/app/actions/auth";
+import { getUserData } from "@/app/actions/user";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const authenticated = await isAuthenticated();
+    // Get the current user from Clerk
+    const user = await currentUser();
 
-    if (!authenticated) {
-      return NextResponse.json({ user: null }, { status: 200 });
+    // If no user is authenticated, return unauthorized
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await getUser();
+    // Sync user with database
+    await syncUserWithDatabase();
 
-    return NextResponse.json({
-      user: {
-        id: user?.id,
-        email: user?.email,
-        given_name: user?.given_name,
-        family_name: user?.family_name,
-        picture: user?.picture,
-      },
-    });
-  } catch (error: any) {
-    console.error("Error fetching user:", error);
+    // Get user data from database
+    const userData = await getUserData();
+
+    // Return user data
+    return NextResponse.json({ user: userData });
+  } catch (error) {
+    console.error("Error in user API route:", error);
     return NextResponse.json(
-      { error: error.message || "An unexpected error occurred" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -10,32 +10,58 @@ type UserData = {
   picture?: string;
 };
 
+/**
+ * Helper function to convert Dynamoose model to plain object
+ */
+function serializeToPlainObject(item: any) {
+  if (!item) return null;
+
+  // Convert to plain object
+  return JSON.parse(JSON.stringify(item));
+}
+
 export class DatabaseService {
   // User operations
   static async createUser(userData: any) {
-    return await User.create(userData);
+    const user = await User.create(userData);
+    return serializeToPlainObject(user);
   }
 
   static async getUserById(id: string) {
-    return await User.get(id);
+    try {
+      const user = await User.get(id);
+      return serializeToPlainObject(user);
+    } catch (error) {
+      console.error("Error getting user by ID:", error);
+      return null;
+    }
   }
 
   static async getOrCreateUser(userData: UserData) {
     try {
       // Try to find existing user
-      let user = await User.get(userData.id);
+      let user;
+      try {
+        user = await User.get(userData.id);
+        user = serializeToPlainObject(user);
+      } catch (error) {
+        user = null;
+      }
 
       if (!user) {
         // Create new user if doesn't exist
-        user = new User({
+        const newUser = new User({
           id: userData.id,
           email: userData.email,
           username: userData.username,
           picture: userData.picture,
           tokens: 100, // Initial tokens for new users
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
-        await user.save();
-        console.log("Created new user:", user.id);
+        await newUser.save();
+        console.log("Created new user:", userData.id);
+        return serializeToPlainObject(newUser);
       } else {
         // Update existing user if needed
         const updates: Record<string, any> = {};
@@ -46,9 +72,14 @@ export class DatabaseService {
           updates.picture = userData.picture;
 
         if (Object.keys(updates).length > 0) {
-          Object.assign(user, updates);
-          await user.save();
-          console.log("Updated user:", user.id);
+          // Get the user again to update
+          const userToUpdate = await User.get(userData.id);
+          Object.assign(userToUpdate, updates, {
+            updatedAt: new Date().toISOString(),
+          });
+          await userToUpdate.save();
+          console.log("Updated user:", userData.id);
+          return serializeToPlainObject(userToUpdate);
         }
       }
 
@@ -61,39 +92,46 @@ export class DatabaseService {
 
   // Chatbot operations
   static async createChatbot(chatbotData: any) {
-    return await Chatbot.create(chatbotData);
+    const chatbot = await Chatbot.create(chatbotData);
+    return serializeToPlainObject(chatbot);
   }
 
   static async getChatbotsByUserId(userId: string) {
-    return await Chatbot.query("userId").eq(userId).exec();
+    const chatbots = await Chatbot.query("userId").eq(userId).exec();
+    return chatbots.map((chatbot) => serializeToPlainObject(chatbot));
   }
 
   // Persona operations
   static async createPersona(personaData: any) {
-    return await Persona.create(personaData);
+    const persona = await Persona.create(personaData);
+    return serializeToPlainObject(persona);
   }
 
   static async getPersonasByUserId(userId: string) {
-    return await Persona.query("userId").eq(userId).exec();
+    const personas = await Persona.query("userId").eq(userId).exec();
+    return personas.map((persona) => serializeToPlainObject(persona));
   }
 
   // Chat operations
   static async createChat(chatData: any) {
-    return await Chat.create(chatData);
+    const chat = await Chat.create(chatData);
+    return serializeToPlainObject(chat);
   }
 
   static async getChatHistory(chatbotId: string, userId: string) {
-    return await Chat.query("chatbotId")
+    const chats = await Chat.query("chatbotId")
       .eq(chatbotId)
       .where("userId")
       .eq(userId)
       .exec();
+    return chats.map((chat) => serializeToPlainObject(chat));
   }
 
   static async addMessageToChat(chatId: string, message: any) {
     const chat = await Chat.get(chatId);
     chat.messages.push(message);
     chat.updatedAt = new Date().toISOString();
-    return await chat.save();
+    await chat.save();
+    return serializeToPlainObject(chat);
   }
 }

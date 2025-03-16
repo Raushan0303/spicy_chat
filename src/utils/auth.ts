@@ -4,15 +4,11 @@
 export function clearAuthCookies(): void {
   // Clear specific known auth cookies with all possible domain and path combinations
   const cookiesToClear = [
-    "kinde_token",
-    "kinde_auth",
     "__session",
+    "__client",
+    "ac-state-key",
+    "post_login_redirect_url",
     "auth-token",
-    "kinde.auth.token",
-    "kinde.auth.state",
-    "kinde.auth.code_verifier",
-    "kinde.auth.nonce",
-    "kinde.auth.redirect_uri",
   ];
 
   // Clear each cookie with various path and domain combinations
@@ -36,7 +32,7 @@ export function clearAuthCookies(): void {
     if (
       cookieName.toLowerCase().includes("auth") ||
       cookieName.toLowerCase().includes("token") ||
-      cookieName.toLowerCase().includes("kinde") ||
+      cookieName.toLowerCase().includes("clerk") ||
       cookieName.toLowerCase().includes("session")
     ) {
       document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
@@ -54,7 +50,7 @@ export function clearAuthCookies(): void {
         key &&
         (key.toLowerCase().includes("auth") ||
           key.toLowerCase().includes("token") ||
-          key.toLowerCase().includes("kinde") ||
+          key.toLowerCase().includes("clerk") ||
           key.toLowerCase().includes("session"))
       ) {
         localStorage.removeItem(key);
@@ -68,7 +64,7 @@ export function clearAuthCookies(): void {
         key &&
         (key.toLowerCase().includes("auth") ||
           key.toLowerCase().includes("token") ||
-          key.toLowerCase().includes("kinde") ||
+          key.toLowerCase().includes("clerk") ||
           key.toLowerCase().includes("session"))
       ) {
         sessionStorage.removeItem(key);
@@ -89,16 +85,8 @@ export function performLogout(): void {
   // Create a timestamp to prevent caching
   const timestamp = new Date().getTime();
 
-  // First try the force logout endpoint
-  fetch(`/api/auth/force-logout?t=${timestamp}`)
-    .then(() => {
-      // Then try the regular logout endpoint
-      window.location.href = `/api/auth/logout?t=${timestamp}`;
-    })
-    .catch(() => {
-      // If force logout fails, still try the regular logout
-      window.location.href = `/api/auth/logout?t=${timestamp}`;
-    });
+  // Redirect to the logout endpoint
+  window.location.href = `/api/auth/logout?t=${timestamp}`;
 }
 
 /**

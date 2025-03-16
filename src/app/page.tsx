@@ -1,282 +1,290 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { getPublicChatbots } from "@/app/actions/chatbot";
-import Auth from "@/components/auth-button";
+import { syncUserWithDatabase } from "./actions/auth";
 
 export default async function Home() {
-  const { isAuthenticated } = getKindeServerSession();
-  const authenticated = await isAuthenticated();
+  // Get the current user from Clerk
+  const user = await currentUser();
+
+  // Sync user with database if authenticated
+  if (user) {
+    await syncUserWithDatabase();
+  }
 
   // Get a few chatbots to feature
-  const publicResult = await getPublicChatbots();
-  const featuredChatbots = publicResult.success
-    ? (publicResult.chatbots || []).slice(0, 5)
+  const chatbotsResult = await getPublicChatbots();
+  const featuredChatbots = chatbotsResult.success
+    ? chatbotsResult.chatbots?.slice(0, 3) || []
     : [];
 
   return (
-    <main className="px-4 py-6 md:px-6 max-w-screen-2xl mx-auto">
-      {/* Hero Section - Reduced height and improved styling */}
-      <div className="relative h-[350px] md:h-[400px] rounded-xl overflow-hidden mb-12 shadow-xl">
-        {/* Background Image with improved quality */}
-        <Image
-          src="/assets/home/hero-banner-1.jpeg"
-          alt="Anime couple in autumn scene"
-          fill
-          className="object-cover object-center scale-105 animate-subtle-zoom"
-          priority
-          quality={90}
-        />
-
-        {/* Enhanced Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent z-10" />
-
-        {/* Content with improved spacing and typography */}
-        <div className="absolute bottom-0 left-0 p-6 md:p-8 z-20 w-full md:max-w-2xl animate-fade-in">
-          <h1
-            className="text-4xl md:text-6xl font-bold mb-4 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300 animate-slide-up"
-            style={{ animationDelay: "0.1s" }}
-          >
-            SPICYCHAT
-          </h1>
-
-          <div
-            className="flex flex-wrap gap-2 mb-4 animate-slide-up"
-            style={{ animationDelay: "0.2s" }}
-          >
-            <Button
-              variant="outline"
-              className="text-xs md:text-sm bg-black/30 border-white/30 hover:bg-black/50 hover:border-white/50 rounded-full transition-all"
-            >
-              Romance
-            </Button>
-            <Button
-              variant="outline"
-              className="text-xs md:text-sm bg-black/30 border-white/30 hover:bg-black/50 hover:border-white/50 rounded-full transition-all"
-            >
-              Betray
-            </Button>
-            <Button
-              variant="outline"
-              className="text-xs md:text-sm bg-black/30 border-white/30 hover:bg-black/50 hover:border-white/50 rounded-full transition-all"
-            >
-              Cold
-            </Button>
-            <Button
-              variant="outline"
-              className="text-xs md:text-sm bg-black/30 border-white/30 hover:bg-black/50 hover:border-white/50 rounded-full transition-all"
-            >
-              Loyal
-            </Button>
+    <div className="min-h-screen bg-black text-white">
+      <div className="container mx-auto ">
+        {/* Hero section with background image */}
+        <div className="relative rounded-3xl overflow-hidden mb-20">
+          {/* Background Image */}
+          <div className="absolute inset-0 z-0">
+            <Image
+              src="/assets/home/hero-banner-1.jpeg"
+              alt="Hero background"
+              fill
+              className="object-cover object-center"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30"></div>
           </div>
 
-          <p
-            className="text-base md:text-xl mb-6 text-gray-200 max-w-lg animate-slide-up"
-            style={{ animationDelay: "0.3s" }}
-          >
-            Create and chat with AI personalities with unique personas and
-            immersive experiences...
-          </p>
-
-          <div
-            className="flex gap-3 animate-slide-up"
-            style={{ animationDelay: "0.4s" }}
-          >
-            {authenticated ? (
-              <>
-                <Link href="/chatbots">
-                  <Button className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-full shadow-lg transition-all duration-300 text-sm md:text-base">
-                    Browse Chatbots
-                  </Button>
-                </Link>
-                <Link href="/chatbots/create">
-                  <Button
-                    variant="outline"
-                    className="bg-black/40 backdrop-blur-sm border-white/30 hover:bg-black/60 hover:border-white/50 rounded-full transition-all duration-300 text-sm md:text-base"
-                  >
-                    Create Chatbot
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Auth />
-              </>
-            )}
+          {/* Content */}
+          <div className="relative z-10 flex flex-col items-center justify-center text-center py-20 px-4">
+            <h1
+              className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600"
+              style={{ animationDelay: "0.1s" }}
+            >
+              Chat with AI Characters
+            </h1>
+            <p
+              className="text-xl text-gray-200 max-w-3xl mb-10 animate-fade-in"
+              style={{ animationDelay: "0.2s" }}
+            >
+              Create and chat with custom AI personalities. Design unique
+              characters with specific traits, knowledge, and communication
+              styles.
+            </p>
+            <div
+              className="flex flex-wrap gap-4 justify-center animate-fade-in"
+              style={{ animationDelay: "0.4s" }}
+            >
+              {user ? (
+                <>
+                  <Link href="/chatbots">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-full transition-all duration-300 transform hover:scale-105">
+                      Explore Chatbots
+                    </Button>
+                  </Link>
+                  <Link href="/chatbots/create">
+                    <Button
+                      variant="outline"
+                      className="border-blue-600 text-blue-400 hover:bg-blue-900/20 px-8 py-6 text-lg rounded-full transition-all duration-300 transform hover:scale-105"
+                    >
+                      Create New Chatbot
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/sign-in">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-full transition-all duration-300 transform hover:scale-105">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/sign-up">
+                    <Button
+                      variant="outline"
+                      className="border-blue-600 text-blue-400 hover:bg-blue-900/20 px-8 py-6 text-lg rounded-full transition-all duration-300 transform hover:scale-105"
+                    >
+                      Sign Up
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Featured Chatbots Section */}
-      {featuredChatbots.length > 0 && (
-        <section className="mb-16">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Featured Chatbots</h2>
-            <Link href="/chatbots">
-              <Button variant="outline">View All</Button>
-            </Link>
-          </div>
+        {/* Featured chatbots section */}
+        {featuredChatbots.length > 0 && (
+          <div className="mb-20 px-4">
+            <div className="flex justify-between items-center mb-10">
+              <h2 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+                Featured Chatbots
+              </h2>
+              <Link href="/chatbots">
+                <Button
+                  variant="outline"
+                  className="border-blue-600 text-blue-400 hover:bg-blue-900/20 rounded-full"
+                >
+                  See All
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {featuredChatbots.map((chatbot: any) => (
+                <div
+                  key={chatbot.id}
+                  className="group relative bg-gradient-to-br from-gray-900/80 to-gray-950 rounded-xl overflow-hidden border border-gray-800/50 hover:border-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10"
+                >
+                  {/* Image container with overlay */}
+                  <div className="aspect-[3/2] relative overflow-hidden">
+                    {chatbot.imageUrl ? (
+                      <img
+                        src={chatbot.imageUrl}
+                        alt={chatbot.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-900/30 to-purple-900/30 flex items-center justify-center">
+                        <span className="text-4xl font-bold text-white/20">
+                          {chatbot.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/70 to-transparent opacity-70 group-hover:opacity-60 transition-opacity duration-300"></div>
 
-          {/* Chatbot Cards with the same design as the chatbots page */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {featuredChatbots.map((chatbot: any) => (
-              <Link
-                href={
-                  authenticated
-                    ? `/chatbots/${chatbot.id}`
-                    : "/api/auth/login?post_login_redirect_url=/chatbots"
-                }
-                key={chatbot.id}
-                className="block transform transition-all duration-300 hover:-translate-y-1 group"
-              >
-                <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-xl bg-gradient-to-br from-blue-600/90 to-blue-900/90 backdrop-blur-md p-1">
-                  {/* Inner card with slight padding for the glowing effect */}
-                  <div className="relative w-full h-full rounded-2xl overflow-hidden">
-                    {/* Background image or gradient with large centered letter */}
-                    <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-                      {chatbot.imageUrl ? (
-                        <>
-                          <Image
-                            src={chatbot.imageUrl}
-                            alt={chatbot.name}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-blue-900/90 via-blue-800/70 to-blue-800/30"></div>
-                        </>
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-800 to-purple-900 flex items-center justify-center">
-                          <span className="text-[120px] font-bold text-white/20">
-                            {chatbot.name.charAt(0).toUpperCase()}
-                          </span>
+                    {/* Floating badge */}
+                    <div className="absolute top-2 right-2 bg-blue-600/90 backdrop-blur-sm text-xs px-2 py-0.5 rounded-full text-white font-medium">
+                      AI Character
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-3 md:p-4">
+                    <h3 className="text-base md:text-lg font-semibold mb-1 text-white group-hover:text-blue-400 transition-colors truncate">
+                      {chatbot.name}
+                    </h3>
+                    <p className="text-xs text-gray-400 mb-3 line-clamp-2">
+                      {chatbot.description || "No description provided"}
+                    </p>
+
+                    {/* Footer with author and action */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-xs text-white font-bold mr-1.5">
+                          {(chatbot.username || "A").charAt(0).toUpperCase()}
                         </div>
-                      )}
-                    </div>
-
-                    {/* Heart icon in top left */}
-                    <div className="absolute top-3 left-3 z-10">
-                      <div className="bg-white/10 backdrop-blur-md rounded-full p-2.5 shadow-lg hover:bg-white/20 transition-colors">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-white"
+                        <span className="text-xs text-gray-500 truncate max-w-[60px]">
+                          {chatbot.username || "Anonymous"}
+                        </span>
+                      </div>
+                      <Link
+                        href={
+                          user
+                            ? `/chatbots/${chatbot.id}`
+                            : "/sign-in?redirect_url=/chatbots"
+                        }
+                      >
+                        <Button
+                          size="sm"
+                          className="bg-blue-600/90 hover:bg-blue-700 text-white rounded-full px-3 py-1 text-xs h-auto"
                         >
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* Bookmark button in top right */}
-                    <div className="absolute top-3 right-3 z-10">
-                      <div className="bg-white/10 backdrop-blur-md rounded-full p-2.5 shadow-lg hover:bg-white/20 transition-colors">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-white"
-                        >
-                          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* Visibility badge */}
-                    <div className="absolute top-3 left-0 right-0 flex justify-center z-10">
-                      <div className="bg-black/60 backdrop-blur-sm rounded-full px-3 py-0.5 text-xs text-white">
-                        {chatbot.visibility === "public" ? "Public" : "Private"}
-                      </div>
-                    </div>
-
-                    {/* Chatbot name at bottom center */}
-                    <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
-                      <div className="bg-white/10 backdrop-blur-md rounded-full py-2 px-4 shadow-lg">
-                        <div className="flex items-center gap-2">
-                          <div className="relative w-6 h-6 rounded-full overflow-hidden border border-white/20 flex-shrink-0">
-                            {chatbot.imageUrl ? (
-                              <Image
-                                src={chatbot.imageUrl}
-                                alt={chatbot.name}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                                <span className="text-xs font-bold text-white">
-                                  {chatbot.name.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-white text-sm font-medium">
-                            {chatbot.name}
-                          </div>
-                        </div>
-                      </div>
+                          Chat
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* New Section: How It Works */}
-      <div className="mb-16 mt-16 relative px-2">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/10 to-blue-900/10 rounded-2xl -z-10 blur-xl"></div>
-
-        <h2 className="text-2xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-          How SpicyChat Works
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 text-center hover:border-gray-700 transition-colors hover:shadow-lg transform hover:-translate-y-1 transition-transform duration-300">
-            <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-blue-400 text-xl font-bold">1</span>
+              ))}
             </div>
-            <h3 className="text-lg font-semibold mb-2">Create a Persona</h3>
-            <p className="text-gray-400 text-sm">
-              Define personality traits, tone, and expertise for your AI
-              character
-            </p>
           </div>
+        )}
 
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 text-center hover:border-gray-700 transition-colors hover:shadow-lg transform hover:-translate-y-1 transition-transform duration-300">
-            <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-blue-400 text-xl font-bold">2</span>
+        {/* Features section */}
+        <div className="mb-20 px-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-10 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+            Create Your Own AI Characters
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            <div className="group bg-gradient-to-br from-gray-900/80 via-gray-900 to-gray-950 p-6 md:p-8 rounded-2xl border border-gray-800/50 hover:border-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-600/30 to-purple-600/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-7 w-7 text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl md:text-2xl font-semibold mb-3 group-hover:text-blue-400 transition-colors">
+                Customize Personalities
+              </h3>
+              <p className="text-gray-400 group-hover:text-gray-300 transition-colors">
+                Define traits, expertise, tone, and communication style to
+                create unique AI characters that reflect your imagination.
+              </p>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Build Your Chatbot</h3>
-            <p className="text-gray-400 text-sm">
-              Customize your chatbot with a name, description, and optional
-              image
-            </p>
-          </div>
 
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 text-center hover:border-gray-700 transition-colors hover:shadow-lg transform hover:-translate-y-1 transition-transform duration-300">
-            <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-blue-400 text-xl font-bold">3</span>
+            <div className="group bg-gradient-to-br from-gray-900/80 via-gray-900 to-gray-950 p-6 md:p-8 rounded-2xl border border-gray-800/50 hover:border-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-600/30 to-purple-600/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-7 w-7 text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl md:text-2xl font-semibold mb-3 group-hover:text-blue-400 transition-colors">
+                Natural Conversations
+              </h3>
+              <p className="text-gray-400 group-hover:text-gray-300 transition-colors">
+                Chat with AI characters that remember your conversation history
+                and respond naturally with contextual awareness.
+              </p>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Start Chatting</h3>
-            <p className="text-gray-400 text-sm">
-              Engage in immersive conversations with your custom AI characters
-            </p>
+
+            <div className="group bg-gradient-to-br from-gray-900/80 via-gray-900 to-gray-950 p-6 md:p-8 rounded-2xl border border-gray-800/50 hover:border-blue-500/30 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-600/30 to-purple-600/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-7 w-7 text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl md:text-2xl font-semibold mb-3 group-hover:text-blue-400 transition-colors">
+                Generate Images
+              </h3>
+              <p className="text-gray-400 group-hover:text-gray-300 transition-colors">
+                Create stunning visual representations of your characters using
+                advanced AI image generation technology.
+              </p>
+            </div>
           </div>
         </div>
+
+        {/* CTA section */}
+        <div className="text-center px-4 py-10 mb-10 bg-gradient-to-r from-gray-900 to-gray-950 rounded-3xl border border-gray-800/50">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+            Ready to Create Your Own AI Character?
+          </h2>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+            Sign up now and start creating unique AI personalities for
+            storytelling, role-playing, or just having fun conversations.
+          </p>
+          {!user && (
+            <Link href="/sign-up">
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-6 text-lg rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/20">
+                Get Started for Free
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
