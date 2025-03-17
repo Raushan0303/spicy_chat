@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { DatabaseService } from "@/services/database.service";
 
+// Define message type for better type safety
+interface Message {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
 // Use OpenRouter API instead of OpenAI
-async function generateChatResponse(messages: any[]) {
+async function generateChatResponse(messages: Message[]) {
   try {
+    console.log(
+      "Generating chat response with messages:",
+      JSON.stringify(messages.slice(0, 2))
+    );
+
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -14,31 +25,44 @@ async function generateChatResponse(messages: any[]) {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "HTTP-Referer":
             process.env.NEXT_PUBLIC_APP_URL || "https://spicychat.ai",
+          "X-Title": "SpicyChat AI", // Site title for rankings on openrouter.ai
         },
         body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || "anthropic/claude-3-opus:beta",
+          model: "gryphe/mythomax-l2-13b:free",
           messages: messages,
-          temperature: 0.7,
-          max_tokens: 1000,
         }),
       }
     );
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenRouter API error:", response.status, errorText);
+      return "I'm sorry, there was an error processing your request. Please try again later.";
+    }
+
     const data = await response.json();
+    console.log(
+      "OpenRouter API response:",
+      JSON.stringify(data).substring(0, 200) + "..."
+    );
+
     return (
-      data.choices[0]?.message?.content ||
+      data.choices?.[0]?.message?.content ||
       "I'm sorry, I couldn't generate a response."
     );
   } catch (error) {
     console.error("Error calling OpenRouter API:", error);
-    return "I'm sorry, there was an error processing your request.";
+    return "I'm sorry, there was an error processing your request. Please try again later.";
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("Chat API route called");
+
     // Get the current user from Clerk
     const user = await currentUser();
+    console.log("User authenticated:", user?.id);
 
     // If no user is authenticated, return unauthorized
     if (!user) {
@@ -47,7 +71,11 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { chatbotId, message, messageId, conversationId } = body;
+    const { chatbotId, message } = body;
+    console.log("Request body:", {
+      chatbotId,
+      messagePreview: message?.substring(0, 50),
+    });
 
     if (!chatbotId || !message) {
       return NextResponse.json(
@@ -58,6 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Get the chatbot
     const chatbot = await DatabaseService.getChatbot(chatbotId);
+    console.log("Chatbot found:", chatbot?.id);
 
     if (!chatbot) {
       return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
@@ -65,71 +94,50 @@ export async function POST(request: NextRequest) {
 
     // Get the persona
     const persona = await DatabaseService.getPersona(chatbot.personaId);
+    console.log("Persona found:", persona?.id);
 
     if (!persona) {
       return NextResponse.json({ error: "Persona not found" }, { status: 404 });
     }
 
-    // Create or get conversation
-    let conversation;
-    if (conversationId) {
-      conversation = await DatabaseService.getConversation(conversationId);
-      if (!conversation) {
-        return NextResponse.json(
-          { error: "Conversation not found" },
-          { status: 404 }
-        );
-      }
-    } else {
-      conversation = await DatabaseService.createConversation({
-        userId: user.id,
-        chatbotId,
-      });
-    }
+    // Format messages for API - just the current message without history
+    const systemPrompt = `You are ${persona.name || "AI Assistant"}, ${
+      persona.description || ""
+    }. ${persona.instructions || ""}
+Always stay in character and respond as ${
+      persona.name || "AI Assistant"
+    } would. Keep your responses concise and engaging.`;
 
-    // Save user message
-    const userMessage = await DatabaseService.createMessage({
-      conversationId: conversation.id,
-      content: message,
-      role: "user",
-      messageId,
-    });
-
-    // Prepare conversation history
-    const messages = await DatabaseService.getConversationMessages(
-      conversation.id
-    );
-
-    // Format messages for API
-    const formattedMessages = [
+    const formattedMessages: Message[] = [
       {
         role: "system",
-        content: `You are ${persona.name}, ${persona.description}. ${persona.instructions}`,
+        content: systemPrompt,
       },
-      ...messages.map((msg) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      })),
+      {
+        role: "user",
+        content: message,
+      },
     ];
 
     // Generate response with OpenRouter API
+    console.log("Generating response...");
     const responseContent = await generateChatResponse(formattedMessages);
+    console.log("Response generated, length:", responseContent.length);
 
-    // Save assistant message
-    const assistantMessage = await DatabaseService.createMessage({
-      conversationId: conversation.id,
-      content: responseContent,
-      role: "assistant",
-    });
-
+    // Return the response without saving to database
     return NextResponse.json({
       success: true,
-      message: assistantMessage,
+      message: {
+        id: `msg_${Date.now()}`,
+        content: responseContent,
+        role: "assistant",
+        timestamp: new Date().toISOString(),
+      },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in chat API:", error);
     return NextResponse.json(
-      { error: "Failed to process chat message" },
+      { error: "Failed to process chat message", details: error.message },
       { status: 500 }
     );
   }

@@ -9,7 +9,7 @@ const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
 const AVAILABLE_MODELS = {
   "stability-sdxl": "stabilityai/stable-diffusion-xl-base-1.0",
   "stability-sdxl-turbo": "stabilityai/sdxl-turbo",
-  dalle3: "openai/dall-e-3", // Note: This is just for UI consistency, DALL-E 3 isn't on HF
+  "playground-v2": "playgroundai/playground-v2-1024px-aesthetic",
 } as const;
 
 // Define a type for the model keys
@@ -46,16 +46,6 @@ export async function POST(request: NextRequest) {
           error: `Invalid model key. Valid options are: ${Object.keys(
             AVAILABLE_MODELS
           ).join(", ")}`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Special case for DALL-E 3 which isn't available on Hugging Face
-    if (modelKey === "dalle3") {
-      return NextResponse.json(
-        {
-          error: "DALL-E 3 is not available through this API endpoint",
         },
         { status: 400 }
       );

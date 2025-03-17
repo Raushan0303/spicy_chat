@@ -101,6 +101,16 @@ export class DatabaseService {
     return chatbots.map((chatbot) => serializeToPlainObject(chatbot));
   }
 
+  static async getChatbot(chatbotId: string) {
+    try {
+      const chatbot = await Chatbot.get(chatbotId);
+      return serializeToPlainObject(chatbot);
+    } catch (error) {
+      console.error("Error getting chatbot by ID:", error);
+      return null;
+    }
+  }
+
   // Persona operations
   static async createPersona(personaData: any) {
     const persona = await Persona.create(personaData);
@@ -110,6 +120,16 @@ export class DatabaseService {
   static async getPersonasByUserId(userId: string) {
     const personas = await Persona.query("userId").eq(userId).exec();
     return personas.map((persona) => serializeToPlainObject(persona));
+  }
+
+  static async getPersona(personaId: string) {
+    try {
+      const persona = await Persona.get(personaId);
+      return serializeToPlainObject(persona);
+    } catch (error) {
+      console.error("Error getting persona by ID:", error);
+      return null;
+    }
   }
 
   // Chat operations
@@ -133,5 +153,111 @@ export class DatabaseService {
     chat.updatedAt = new Date().toISOString();
     await chat.save();
     return serializeToPlainObject(chat);
+  }
+
+  // Conversation operations
+  static async getConversation(conversationId: string) {
+    try {
+      const conversation = await Chat.get(conversationId);
+      return serializeToPlainObject(conversation);
+    } catch (error) {
+      console.error("Error getting conversation by ID:", error);
+      return null;
+    }
+  }
+
+  static async createConversation(conversationData: {
+    userId: string;
+    chatbotId: string;
+  }) {
+    try {
+      const conversation = new Chat({
+        userId: conversationData.userId,
+        chatbotId: conversationData.chatbotId,
+        messages: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      await conversation.save();
+      return serializeToPlainObject(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      throw error;
+    }
+  }
+
+  static async createMessage(messageData: {
+    conversationId: string;
+    content: string;
+    role: string;
+    messageId?: string;
+  }) {
+    try {
+      // Log the conversation ID for debugging
+      console.log(
+        "Attempting to get conversation with ID:",
+        messageData.conversationId
+      );
+
+      // Validate the conversation ID format before querying
+      if (
+        !messageData.conversationId ||
+        typeof messageData.conversationId !== "string"
+      ) {
+        throw new Error(
+          `Invalid conversation ID: ${messageData.conversationId}`
+        );
+      }
+
+      let conversation;
+      try {
+        conversation = await Chat.get(messageData.conversationId);
+      } catch (error) {
+        console.error(
+          `Error retrieving conversation with ID ${messageData.conversationId}:`,
+          error
+        );
+        throw new Error(
+          `Conversation not found: ${messageData.conversationId}`
+        );
+      }
+
+      if (!conversation) {
+        throw new Error(
+          `Conversation not found: ${messageData.conversationId}`
+        );
+      }
+
+      const message = {
+        id: messageData.messageId || `msg_${Date.now()}`,
+        content: messageData.content,
+        role: messageData.role,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Ensure messages array exists
+      if (!conversation.messages) {
+        conversation.messages = [];
+      }
+
+      conversation.messages.push(message);
+      conversation.updatedAt = new Date().toISOString();
+      await conversation.save();
+
+      return message;
+    } catch (error) {
+      console.error("Error creating message:", error);
+      throw error;
+    }
+  }
+
+  static async getConversationMessages(conversationId: string) {
+    try {
+      const conversation = await Chat.get(conversationId);
+      return conversation ? conversation.messages || [] : [];
+    } catch (error) {
+      console.error("Error getting conversation messages:", error);
+      return [];
+    }
   }
 }

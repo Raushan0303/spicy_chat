@@ -11,7 +11,7 @@ const HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
 const MODELS = {
   "stability-sdxl": "stabilityai/stable-diffusion-xl-base-1.0",
   "stability-sdxl-turbo": "stabilityai/sdxl-turbo",
-  dalle3: "openai/dall-e-3",
+  "playground-v2": "playgroundai/playground-v2-1024px-aesthetic",
 };
 
 type ModelKey = keyof typeof MODELS;

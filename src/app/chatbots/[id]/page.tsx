@@ -293,12 +293,7 @@ export default function ChatbotPage() {
     setIsSending(true);
 
     try {
-      // Transform messages for API - only send role and content, not timestamp
-      const messageHistory = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
+      // Send only the current message without history
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -307,7 +302,6 @@ export default function ChatbotPage() {
         body: JSON.stringify({
           chatbotId: chatId,
           message: userMessage.content,
-          messageHistory,
         }),
       });
 
@@ -320,7 +314,7 @@ export default function ChatbotPage() {
 
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.message,
+        content: data.message.content,
         timestamp: Date.now(),
       };
 

@@ -3,10 +3,10 @@ import { getChatbot } from "@/app/actions/chatbot";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const chatbotId = await params.id;
+    const chatbotId = context.params.id;
 
     if (!chatbotId) {
       return NextResponse.json(
