@@ -93,7 +93,7 @@ export default function ChatbotPage() {
   const modelOptions = [
     { label: "Stable Diffusion XL", value: "stability-sdxl" },
     { label: "SDXL Turbo (Faster)", value: "stability-sdxl-turbo" },
-    { label: "DALL-E 3", value: "dalle3" },
+    { label: "Playground v2", value: "playground-v2" },
   ];
 
   // Auto-resize textarea as user types
@@ -191,12 +191,27 @@ export default function ChatbotPage() {
   // Function to add initial greeting
   function addInitialGreeting(chatbot: any, persona: any) {
     if (chatbot && persona) {
+      const expertise = persona.expertise?.join(", ") || "various topics";
+      const traits = persona.traits?.join(", ") || "helpful";
+
+      let greeting = `Hi! I'm ${chatbot.name}. `;
+
+      if (persona.description) {
+        greeting += `${persona.description}. `;
+      }
+
+      greeting += `I'm here to chat about ${expertise}. `;
+
+      if (traits) {
+        greeting += `I'm ${traits}. `;
+      }
+
+      greeting += `How can I help you today?`;
+
       setMessages([
         {
           role: "assistant",
-          content: `Hi! I'm ${chatbot.name}. I'm here to chat about ${
-            persona.expertise?.join(", ") || "various topics"
-          }. How can I help you today?`,
+          content: greeting,
           timestamp: Date.now(),
         },
       ]);
@@ -490,11 +505,11 @@ export default function ChatbotPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-1rem)] bg-gradient-to-b from-gray-900 to-black text-white overflow-hidden">
-      {/* Header - Made more compact */}
-      <div className="flex items-center justify-between p-2 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm">
+    <div className="flex flex-col h-screen bg-black text-white overflow-hidden">
+      {/* Header - Fixed at top */}
+      <div className="flex items-center justify-between p-2 border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <div className="relative h-8 w-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center">
+          <div className="relative h-7 w-7 rounded-full overflow-hidden bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center">
             {chatbot?.imageUrl ? (
               <Image
                 src={chatbot.imageUrl}
@@ -503,7 +518,7 @@ export default function ChatbotPage() {
                 className="object-cover"
               />
             ) : (
-              <span className="text-sm font-bold">
+              <span className="text-xs font-bold">
                 {chatbot?.name?.charAt(0).toUpperCase()}
               </span>
             )}
@@ -514,67 +529,64 @@ export default function ChatbotPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
+            className="h-7 w-7 text-gray-400 hover:text-white hover:bg-gray-800"
             onClick={() => setShowImageGenerator(!showImageGenerator)}
           >
-            <Wand className="h-4 w-4" />
+            <Wand className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.push(`/chatbots/${params.id}/settings`)}
-            className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
+            className="h-7 w-7 text-gray-400 hover:text-white hover:bg-gray-800"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      {/* Image Generator - Conditionally shown */}
-      {showImageGenerator && (
-        <div className="p-2 bg-gray-900/50 border-b border-gray-800">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <div className="text-xs font-medium">Image Generator</div>
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={selectedImageModel}
-                onChange={(e) => setSelectedImageModel(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-xs"
-              >
-                {modelOptions.map((model) => (
-                  <option key={model.value} value={model.value}>
-                    {model.label}
-                  </option>
-                ))}
-              </select>
-              <Input
-                ref={imagePromptRef}
-                placeholder="Describe the image..."
-                className="flex-1 bg-gray-800 border-gray-700 text-xs h-8"
-              />
-              <Button
-                onClick={handleGenerateImage}
-                disabled={isGeneratingImage}
-                className="bg-blue-600 hover:bg-blue-700 h-8 text-xs px-2"
-              >
-                {isGeneratingImage ? "Generating..." : "Generate"}
-              </Button>
+      {/* Main content area - Scrollable */}
+      <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
+        {/* Image Generator - Conditionally shown */}
+        {showImageGenerator && (
+          <div className="p-2 bg-gray-900/30 border-b border-gray-800 mx-auto max-w-3xl">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-medium">Image Generator</div>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={selectedImageModel}
+                  onChange={(e) => setSelectedImageModel(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-xs"
+                >
+                  {modelOptions.map((model) => (
+                    <option key={model.value} value={model.value}>
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  ref={imagePromptRef}
+                  placeholder="Describe the image..."
+                  className="flex-1 bg-gray-800 border-gray-700 text-xs h-8"
+                />
+                <Button
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
+                  className="bg-blue-600 hover:bg-blue-700 h-8 text-xs px-3"
+                >
+                  {isGeneratingImage ? "Generating..." : "Generate"}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Chat Area - Adjusted to take remaining space with minimal padding */}
-      <div
-        className="flex-1 overflow-y-auto p-2 space-y-3 mb-[-10px]"
-        ref={chatContainerRef}
-      >
-        {/* Welcome Message - More compact */}
+        {/* Welcome Message - Centered when no messages */}
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-2 py-4 space-y-3">
-            <div className="relative h-16 w-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] text-center px-4">
+            <div className="relative h-16 w-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center mb-4">
               {chatbot?.imageUrl ? (
                 <Image
                   src={chatbot.imageUrl}
@@ -583,106 +595,91 @@ export default function ChatbotPage() {
                   className="object-cover"
                 />
               ) : (
-                <span className="text-3xl font-bold">
+                <span className="text-2xl font-bold">
                   {chatbot?.name?.charAt(0).toUpperCase()}
                 </span>
               )}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-2 max-w-md">
               <h1 className="text-xl font-bold">Hi, I'm {chatbot?.name}</h1>
               <h2 className="text-lg">Can I help you with anything?</h2>
-              <p className="text-gray-400 max-w-md text-sm">
+              <p className="text-gray-400 text-sm">
                 Ready to assist you with anything you need, from answering
                 questions to providing recommendations. Let's get started!
               </p>
             </div>
+
+            {/* Suggestion Cards - In a row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-6 w-full max-w-2xl">
+              {getSuggestionTopics().map((topic, index) => (
+                <Card
+                  key={index}
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-gray-600 transition-colors p-2 cursor-pointer"
+                  onClick={() => {
+                    setInputValue(`Tell me about ${topic.title}`);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="bg-gray-700 rounded-full p-1.5">
+                      {topic.icon}
+                    </div>
+                    <div>
+                      <div className="font-medium text-xs">{topic.title}</div>
+                      <div className="text-xs text-gray-400">
+                        {topic.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Chat Messages */}
+        {/* Chat Messages - With proper spacing */}
         {messages.length > 0 && (
-          <div className="space-y-3 pb-2">
+          <div className="pb-20">
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
+                className={`px-4 py-4 ${
+                  message.role === "assistant" ? "bg-gray-900/30" : ""
                 }`}
               >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 ${
-                    message.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-800 text-white"
-                  }`}
-                >
-                  {renderMessageContent(message.content)}
+                <div className="max-w-3xl mx-auto">
+                  <div
+                    className={`${
+                      message.role === "user" ? "text-white" : "text-white"
+                    }`}
+                  >
+                    {renderMessageContent(message.content)}
+                  </div>
                 </div>
               </div>
             ))}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-20" />
           </div>
         )}
       </div>
 
-      {/* Suggestion Cards - More compact */}
-      {messages.length === 0 && (
-        <div className="px-2 pb-1">
-          <div className="grid grid-cols-3 gap-2">
-            {getSuggestionTopics().map((topic, index) => (
-              <Card
-                key={index}
-                className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-gray-600 transition-colors p-2 cursor-pointer"
-                onClick={() => {
-                  setInputValue(`Tell me about ${topic.title}`);
-                  inputRef.current?.focus();
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="bg-gray-700 rounded-full p-1.5">
-                    {topic.icon}
-                  </div>
-                  <div>
-                    <div className="font-medium text-xs">{topic.title}</div>
-                    <div className="text-xs text-gray-400">
-                      {topic.subtitle}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Input Area - Fixed at bottom, always visible, positioned higher */}
-      <div className="p-2 pt-1 border-t border-gray-800 bg-gray-900/50 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
-            onClick={() => {
-              toast.success("AI suggestions coming soon!");
-            }}
-          >
-            <Sparkles className="h-4 w-4" />
-          </Button>
-
-          <div className="relative flex-1">
+      {/* Input Area - Fixed at bottom, always visible */}
+      <div className="fixed bottom-0 left-0 right-0 p-2 sm:p-4 bg-black border-t border-gray-800 z-10">
+        <div className="max-w-[650px] w-full mx-auto relative">
+          <div className="relative rounded-xl border border-gray-700 bg-[#0b0d0e] overflow-hidden">
             <Input
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder={`Ask ${chatbot?.name} anything...`}
-              className="bg-gray-800 border-gray-700 focus:border-blue-500 text-white py-2 pr-10 rounded-full text-sm h-8"
+              className="bg-transparent border-0 focus:ring-0 focus:border-0 text-white py-3 px-4 pr-12 text-sm min-h-[50px] shadow-none w-full"
             />
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white hover:bg-transparent h-6 w-6"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white hover:bg-transparent h-8 w-8"
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isSending}
             >
